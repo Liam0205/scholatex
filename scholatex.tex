@@ -1,0 +1,858 @@
+% !TeX program = lualatex
+% =====================================================================
+%  scholatex.tex  --  user documentation for the scholatex package
+%
+%  This is a STANDALONE document: it uses the standard article class and
+%  compiles with any LuaLaTeX (or pdfLaTeX) distribution, independently
+%  of the scholatex class it documents. It does NOT require any images.
+%
+%  Compile:  lualatex scholatex.tex   (twice, for the table of contents)
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[margin=25mm]{geometry}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{fancyvrb}
+\usepackage{titlesec}
+\usepackage[colorlinks=true,linkcolor=Navy,urlcolor=Navy]{hyperref}
+
+% \fint (average integral) built as an integral crossed by a short bar,
+% without pulling in esint/commath, so the documentation keeps compiling on
+% a bare amsmath + graphicx setup.
+\usepackage{graphicx}
+\providecommand{\fint}{\mathchoice
+  {\rlap{\,\,\raisebox{0.32em}{\scalebox{0.7}{$-$}}}\!\int}
+  {\rlap{\,\,\raisebox{0.30em}{\scalebox{0.6}{$-$}}}\!\int}
+  {\rlap{\,\raisebox{0.28em}{\scalebox{0.5}{$-$}}}\!\int}
+  {\rlap{\,\raisebox{0.28em}{\scalebox{0.5}{$-$}}}\!\int}}
+
+\definecolor{Navy}{HTML}{1F3A5F}
+\definecolor{CodeBg}{HTML}{F4F5F7}
+\definecolor{CodeFrame}{HTML}{D7DBE0}
+\definecolor{Accent}{HTML}{8A1C1C}
+
+% --- code blocks -----------------------------------------------------
+\DefineVerbatimEnvironment{slcode}{Verbatim}{%
+  frame=single,
+  framerule=0.4pt,
+  rulecolor=\color{CodeFrame},
+  fontsize=\small,
+  xleftmargin=4mm,
+  xrightmargin=4mm,
+  framesep=3mm,
+  formatcom=\color{black!88}}
+
+\newcommand{\tg}[1]{\texttt{#1}}
+\newcommand{\opt}[1]{\texttt{\textcolor{Accent}{#1}}}
+
+\titleformat{\section}{\Large\bfseries\color{Navy}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries\color{Navy!85!black}}{\thesubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{1.4em}{0.5em}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+
+\hypersetup{
+  pdftitle={scholatex --- user manual},
+  pdfauthor={Gerard Dubard},
+}
+
+% =====================================================================
+\begin{document}
+
+\begin{titlepage}
+\centering
+\vspace*{3.5cm}
+{\Huge\bfseries\color{Navy} scholatex\par}
+\vspace{0.8cm}
+{\Large Print-ready teaching worksheets, the easy way\par}
+\vspace{2.5cm}
+{\large A small tag-based language for handouts and exercises,\\[2pt]
+built on LuaLaTeX\par}
+\vspace{3cm}
+{\large Gérard Dubard\par}
+\vspace{0.4cm}
+{\large Version 2.1\par}
+\vfill
+{\small Released under the GNU General Public License v3.0\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% =====================================================================
+\section{Introduction}
+% =====================================================================
+
+\textbf{scholatex} is a small markup language for producing print-ready
+teaching materials --- worksheets, exercise sheets, handouts, short
+assessments --- without writing LaTeX. It is not a general-purpose
+replacement for LaTeX; it is a focused, consistent little language for the
+documents a teacher actually makes: a few framed exercises, a table of
+results, a couple of simple formulas, an image or two, laid out cleanly on
+a page meant to be printed and handed out.
+
+It compiles to LuaLaTeX, so the output has full LaTeX typesetting quality,
+but the syntax is meant to be read and edited in minutes by someone who
+does not know LaTeX: no \tg{\textbackslash begin\{tabular\}\{|c|c|\}}, no
+counting ampersands, no hunting for the package that draws a coloured box. A
+single tag syntax covers text, tables, images, simple maths, framed boxes,
+lists and full-page named-area layouts --- the building blocks of a
+worksheet. scholatex is a \emph{closed language}: the backslash is an
+ordinary character, so raw LaTeX commands in the body are typeset literally
+rather than executed. Everything a worksheet needs is expressed through tags,
+which keeps documents consistent and safe to share.
+
+It is built for the people LaTeX usually loses: teachers preparing
+classroom materials, and anyone who wants a clean printable sheet without
+climbing the LaTeX learning curve.
+
+You write a \tg{.tex} file with a tiny, readable syntax between
+\tg{\textbackslash begin\{document\}} and \tg{\textbackslash end\{document\}}.
+At compile time the \tg{scholatex} class reads that body, transpiles it to
+LaTeX, and typesets it. Nothing to install beyond a LuaLaTeX distribution.
+
+\begin{slcode}
+% !TeX program = lualatex
+\documentclass[margins=20, size=12, imgdir=IMG]{scholatex}
+\begin{document}
+
+<Navy b 18pt c>My first scholatex document
+
+This is a normal paragraph. <b>{Bold}, <i>{italic}, <Red>{red}.
+
+<box line:Navy fill:AliceBlue radius:3 title:{A framed note}>{
+Boxes, tables, images and maths all use the same tag syntax.
+}
+
+\end{document}
+\end{slcode}
+
+% =====================================================================
+\section{The one rule}
+% =====================================================================
+
+Everything is a \textbf{tag}: \tg{<attributes>} followed either by
+\tg{\{content\}} (inline) or by a line that ends in \tg{\{} (a block).
+Attribute words follow a single case convention:
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Form} & \textbf{Meaning} & \textbf{Examples} \\
+\midrule
+\tg{lowercase} & a short keyword (style, alignment, skip) & \tg{b}, \tg{i}, \tg{c}, \tg{2tab} \\
+\tg{CamelCase} & a CSS colour (151 of them) & \tg{Navy}, \tg{SteelBlue}, \tg{Crimson} \\
+\tg{UPPERCASE} & a font name & \tg{DEJAVU SANS} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The order of words inside a tag never matters --- emission is always
+normalised (page break, then vertical skips, then alignment, then tabs, then
+styles).
+
+% =====================================================================
+\section{Class options}
+% =====================================================================
+
+Set in \tg{\textbackslash documentclass[...]\{scholatex\}}:
+
+\begin{center}
+\small
+\begin{longtable}{@{}p{2.4cm}p{2.6cm}p{8.4cm}@{}}
+\toprule
+\textbf{Option} & \textbf{Default} & \textbf{Meaning} \\
+\midrule
+\endhead
+\opt{margins} & \tg{20} & \tg{N} (all sides) or \tg{\{top,right,bottom,left\}} in mm \\
+\opt{font} & \tg{Latin Modern Roman} & main text font \\
+\opt{mathfont} & \tg{Latin Modern Math} & math font \\
+\opt{size} & \tg{11} & base font size in pt \\
+\opt{imgdir} & \tg{img} & folder(s) searched for bare image names; accepts a comma-separated list, e.g. \tg{\{IMG, IMAGES/PNG\}} \\
+\opt{tabwidth} & \tg{8} & width of one tab, in mm \\
+\opt{lineheight} & \tg{8} & height of one explicit line skip (\tg{<line>}, \tg{<Nlines>}), in mm \\
+\opt{linespread} & \tg{1.0} & overall line spacing (\tg{1.5} = one-and-a-half); tall maths never touches even at \tg{1.0} \\
+\opt{scriptscale} & \tg{100} & scale (\%) of \tg{up}/\tg{down} scripts \\
+\opt{padding} & \tg{2} & inner padding (mm) between a box/grid-area frame and its content \\
+\opt{lang} & \tg{fr} & decimal separator: \tg{fr} (comma) or \tg{en} (point); affects both literal decimals in maths and interpolated values \\
+\opt{untrusted} & \tg{false} & when \tg{true}, runs the document's Lua in a restricted sandbox (see \S\ref{sec:security}) \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+Headings carry no extra vertical space of their own, and no built-in colour:
+to style a heading (colour, weight, size, or a line skip before it), fold a
+heading keyword into an alias and use it (see \S\ref{sec:aliases}).
+
+% =====================================================================
+\section{Text attributes}
+% =====================================================================
+
+\textbf{Inline styles} --- \tg{b} bold, \tg{i} italic, \tg{u} underline,
+\tg{emph}, \tg{sf} sans-serif, \tg{sc} small caps.
+
+\textbf{Colours} --- a colour is always one of the 151 CSS / svgnames
+colours, written in CamelCase: \tg{Navy}, \tg{Red}, \tg{Tomato},
+\tg{SteelBlue}, \tg{ForestGreen}, \dots. There is a single rule --- no
+lowercase shortcuts --- so the everyday colours are simply capitalised:
+\tg{Red}, \tg{Blue}, \tg{Green}, \tg{Gray}. These are exactly the colours
+xcolor provides under \tg{svgnames}: the 147 CSS Color Module names plus the
+four X11 extras \tg{LightGoldenrod}, \tg{LightSlateBlue}, \tg{NavyBlue} and
+\tg{VioletRed}. Names are case-sensitive --- write \tg{Seashell}, not
+\tg{SeaShell}. The \texttt{README} groups all 151 by family for browsing.
+
+\textbf{Fonts and sizes} --- a font name in CAPITALS
+(\tg{<DEJAVU SANS>\{\dots\}}); sizes as \tg{Npt} or \tg{Npx}
+(\tg{<14pt>\{\dots\}}).
+
+\textbf{Alignment} --- \tg{l} left, \tg{c} centre, \tg{r} right, \tg{j}
+justified (the same letters as table columns).
+
+\textbf{Tabs and skips} (the number is always a prefix) --- \tg{Ntab} indents
+the first line by N tabs; vertical skips follow singular/plural agreement:
+\tg{line} or \tg{1line} skips one line, \tg{2lines}, \tg{3lines}, \dots\ skip
+several. Bare \tg{tab} = \tg{1tab}.
+
+\textbf{Scripts} --- \tg{upN} raises text by N mm (superscript-like),
+\tg{downN} lowers it (subscript-like): \tg{x<up4>\{2\}}, \tg{H<down2>\{2\}O}.
+
+\textbf{Page break} --- \tg{nextpage}.
+
+\textbf{Section headings} --- \tg{section}, \tg{subsection},
+\tg{subsubsection} give the three heading levels, numbered automatically:
+
+\begin{slcode}
+<section>First topic
+<subsection>A detail
+<subsubsection>A finer point
+\end{slcode}
+
+renders as `1 First topic', `1.1 A detail',
+`1.1.1 A finer point'. By default the numbers are hierarchical; a counter
+keyword on a heading sets the style of that level on its own, with no
+inherited prefix: \tg{num} (1, 2, 3), \tg{roman} (i, ii), \tg{ROMAN}
+(I, II), \tg{alpha} (a, b), \tg{ALPHA} (A, B). Thus
+\tg{<section ROMAN>} with \tg{<subsection num>} gives \texttt{I}, \texttt{II}
+and, under each, \texttt{1}, \texttt{2} --- not \texttt{I.1}. A heading can
+also be written as a
+\textbf{block} carrying a \tg{title:} option, with its body in braces:
+
+\begin{slcode}
+<subsection title:{A heading}>{
+<tab>This body paragraph is indented on its first line.
+}
+\end{slcode}
+
+A \textbf{table of contents} is printed with \tg{<tableofcontents>}; give it
+a title in braces:
+
+\begin{slcode}
+<tableofcontents>{Table of contents}
+\end{slcode}
+
+Combine anything in one tag:
+
+\begin{slcode}
+<nextpage 2lines 2tab j Navy b>{A new page, a two-line skip, a two-tab
+indent, justified, Navy, bold --- all before the first letter of the text.}
+\end{slcode}
+
+% =====================================================================
+\section{Aliases and macros --- the factoring tool}\label{sec:aliases}
+% =====================================================================
+
+This is what makes scholatex scale. Define a style \textbf{once}, at the top
+of the document, then name it everywhere instead of repeating its attributes.
+One edit at the definition restyles the whole document.
+
+\begin{slcode}
+let title = <Navy b 18pt c>          % style alias
+let h1    = <Navy b section>         % a heading style, reusable
+let p     = <tab>                    % a standard indented paragraph
+<title>My heading
+<h1>First topic
+<p>{ A paragraph, indented and justified, named not described. }
+
+let n = 7                            % value, usable in #{...}
+Seven squared is #{n*n}.
+
+let greet{name} = Hello #name!       % text macro with parameters
+\end{slcode}
+
+Change \tg{let h1 = <Navy b section>} to \tg{<ForestGreen b section>} once
+and \textbf{every} first-level heading follows --- the single point of
+control that keeps a long document consistent.
+
+% =====================================================================
+\section{Tables}
+% =====================================================================
+
+Columns are declared in brackets, \textbf{one two-letter placement code per
+column}. The first letter is vertical (\tg{t} top, \tg{m} middle, \tg{b}
+bottom), the second horizontal (\tg{l}, \tg{c}, \tg{r}). So \tg{mc} is
+middle-centre, \tg{br} bottom-right. Columns share the page equally; \tg{N:}
+before the code fixes a width in mm (\tg{[40:tl, 30:mc]}). Cells are
+separated by \tg{|}, rows by line breaks, and \tg{<nextline>}
+breaks a line inside a cell.
+
+\begin{slcode}
+<table [mc, tl, br] borders header>{
+Figure | Formula | Value
+<img 25>{cat.png} | $1/2 + 1/3$ | $5/6$
+}
+\end{slcode}
+
+\tg{borders} draws rules; \tg{header} bolds the first row. \tg{gap:N} sets
+the horizontal spacing between columns, in mm.
+
+A cell may span several columns with \tg{colspan:N}, or several rows with
+\tg{rowspan:N} (\tg{N}~$\geq$~2). For a \tg{rowspan}, each cell it covers on
+the lines below is marked with a lone \tg{.}.
+
+\begin{slcode}
+<table [mc, ml, mc, mc] borders header gap:3>{
+<colspan:4 mc>{Term report}
+Day | Subject | Mark | Coef.
+<rowspan:2 mc>{Monday} | Maths | 15 | 4
+. | French | 12 | 3
+}
+\end{slcode}
+
+Colour options act \textbf{inside} the table, on its cells and rules ---
+\tg{fill:} colours every body cell, \tg{line:} the rules, \tg{text:} the text
+colour, and \tg{headerfill:} / \tg{headertext:} the header row. These are not
+box options: a table has no \tg{radius:}, \tg{title:} or outer frame. To
+frame a table, wrap it in a \tg{<box>}.
+
+% =====================================================================
+\section{Images}
+% =====================================================================
+
+\begin{slcode}
+<img>{chat.png}        % fills the available width (the cell or line)
+<img 25>{chat.png}     % 25 mm wide
+<img 25x15>{chat.png}  % fits a 25x15 mm box, ratio preserved
+\end{slcode}
+
+A bare name is searched in each folder of \tg{imgdir} in turn, then at the
+project root. An explicit path always works, with or without \tg{./}.
+
+% =====================================================================
+\section{Maths}
+% =====================================================================
+
+Wrap maths in \Verb|$...$|. A small mini-language keeps it light:
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{You write} & \textbf{You get} \\
+\midrule
+\tg{*} & $\times$ \\
+\tg{+-} & $\pm$ \\
+\tg{<=} \tg{>=} \tg{!=} & $\leq$ \quad $\geq$ \quad $\neq$ \\
+\tg{a/b} & fraction (chained \tg{a/b/c} reads as \tg{(a/b)/c}) \\
+\tg{x\^{}2} \quad \tg{x\_i} & power / index (bind tighter than \tg{/}) \\
+\tg{sqrt(2)} & $\sqrt{2}$ \\
+\tg{sum(i=1, n) i} & $\sum$ with bounds, display style \\
+\tg{prod(k=1, n) k} & $\prod$ with bounds, display style \\
+\tg{int(x) f(x)} & $\int f(x)\,\mathrm{d}x$ (differential added) \\
+\tg{int(x=a, b) f(x)} & $\int_{a}^{b} f(x)\,\mathrm{d}x$ \\
+\tg{contourint(C) f(z)} & $\oint$ contour integral \\
+\tg{pvint(x=a, b) f(x)} & $\mathrm{p.v.}\!\int$ principal value \\
+\tg{meanint(x=a, b) f(x)} & $\fint$ average integral \\
+\tg{dy/dx}, \tg{df/dx} & derivative, upright $\mathrm{d}$ (ISO) \\
+\tg{sin(x)} \tg{cos(x)} \tg{ln(x)} & upright function names \\
+\tg{abs(x)} & $|x|$ \\
+\tg{norm(v)} & $\|v\|$ \\
+\tg{vec(AB)} & $\overrightarrow{AB}$ \\
+\tg{floor(x)} \tg{ceil(x)} & $\lfloor x\rfloor$ \quad $\lceil x\rceil$ \\
+\tg{bar(z)}, \tg{conj(z)} & $\overline{z}$ (conjugate, mean, closure) \\
+\tg{not(A cup B)} & $\overline{A\cup B}$ (logical negation) \\
+\tg{lim(x->0) f(x)} & limit, target under the word \\
+\tg{partial}, \tg{nabla} & $\partial$, $\nabla$ \\
+\tg{pi}, \tg{alpha}, \dots & Greek letters \\
+\tg{inf} & $\infty$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The helpers nest, so the secondary-school staples come for free:
+\tg{norm(vec(AB))} is the norm of a vector,
+\tg{vec(AB) + vec(BC) = vec(AC)} is Chasles' relation.
+
+\subsection{Sets, logic and relations}
+
+A worksheet from collège to the upper years needs more than arithmetic. The
+mini-language carries the standard notation as plain words and ASCII
+shortcuts, so a statement reads as one types it.
+
+\textbf{Number sets} --- a doubled capital gives the blackboard-bold set,
+the ASCIIMath convention. Doubling avoids any clash with a one-letter
+variable: \tg{NN} $\mathbb{N}$, \tg{ZZ} $\mathbb{Z}$, \tg{DD} $\mathbb{D}$,
+\tg{QQ} $\mathbb{Q}$, \tg{RR} $\mathbb{R}$, \tg{CC} $\mathbb{C}$, plus
+\tg{PP} \tg{KK} \tg{HH} \tg{FF} \tg{EE} \tg{UU} for the advanced ones.
+
+\textbf{Comparisons} --- inside a formula, \tg{<} \tg{>} \tg{<=} \tg{>=}
+\tg{!=} give $<\ >\ \leq\ \geq\ \neq$. (In running prose, double the
+chevrons --- \tg{<<=>>} prints a literal $\Leftrightarrow$.)
+
+\textbf{Quantifiers and logic} --- \tg{forall} $\forall$, \tg{exists}
+$\exists$; the connectives \tg{and} $\land$, \tg{or} $\lor$, \tg{lnot}
+$\lnot$, \tg{neg} $\neg$. Implication and equivalence come both as words and
+as arrows: \tg{=>} or \tg{implies} $\Rightarrow$, \tg{<<=>>} or \tg{iff}
+$\Leftrightarrow$. The longer arrow forms always win over the comparison
+they contain, so \tg{abs(x) <= 1 <=> -1 <= x <= 1} reads correctly inside a
+formula.
+
+\textbf{Negation} --- a single rule: \tg{!} in front of a relation or
+quantifier negates it, choosing the proper struck-through glyph. So
+\tg{!in} is $\notin$, \tg{!exists} is $\nexists$, \tg{!subset} is
+$\not\subset$, \tg{!subseteq} is $\nsubseteq$, \tg{!equiv} is
+$\not\equiv$. (\tg{!=} stays ``not equal'', $\neq$.)
+
+\textbf{Set relations} --- \tg{in} $\in$, \tg{subset} $\subset$,
+\tg{supset} $\supset$, \tg{subseteq} $\subseteq$, \tg{supseteq}
+$\supseteq$, \tg{cup} $\cup$, \tg{cap} $\cap$, \tg{setminus} $\setminus$,
+\tg{emptyset} $\varnothing$ (negate any of them with \tg{!}).
+
+\textbf{Arrows} --- \tg{->} or \tg{to} $\to$, \tg{mapsto} $\mapsto$.
+
+\begin{slcode}
+$forall epsilon > 0, exists eta > 0$
+$x in RR setminus QQ$
+$x !in QQ$
+$(P and Q) => P$
+\end{slcode}
+
+\subsection{Brackets and accents}
+
+The integer part and a few one-argument wrappers follow the same
+\tg{name(...)} shape as \tg{abs} and \tg{vec}: \tg{floor(x)} $\lfloor
+x\rfloor$, \tg{ceil(x)} $\lceil x\rceil$, \tg{set(x : x > 0)} a
+brace set, \tg{abr(u, v)} $\langle u, v\rangle$ an inner product.
+
+An overline is named by intent, the same rule under two words:
+\tg{bar(...)} for the generic bar (complex conjugate, mean, closure of a
+set) and \tg{not(...)} for logical negation --- so \tg{bar(z)} is
+$\overline{z}$ and \tg{not(A cup B)} is $\overline{A\cup B}$. The usual
+accents complete the set: \tg{hat(f)} $\widehat{f}$, \tg{tilde(x)}
+$\widetilde{x}$.
+
+\subsection{Limits with an arrow}
+
+\tg{lim(x->0) f(x)} already sets a limit with its target under the word.
+For the running phrase ``$u_n$ tends to $\ell$'' written over an arrow, use
+\tg{arrow(...)}: \tg{u\_n arrow(n to +inf) l} sets a long right arrow with
+the condition underneath. \tg{to} and \tg{->} are interchangeable inside
+it.
+
+\begin{slcode}
+$lim(n -> +inf) u_n = l$
+$u_n arrow(n to +inf) l$
+\end{slcode}
+
+Scripts bind tighter than division, as in ordinary reading: \tg{x\^{}2/y} is
+the fraction $\frac{x^{2}}{y}$ and \tg{1/i\^{}2} is $\frac{1}{i^{2}}$, not
+$\frac{1}{i}^{2}$. To divide by a base before its script, parenthesise.
+
+\subsection{Operators with an index}
+
+\tg{sum}, \tg{prod} and \tg{lim} carry their index in \tg{(...)} and set
+their whole expression in display style, so a fraction in the body keeps full
+size and a limit's target sits \emph{under} the word, as on a blackboard. A
+\tg{sum}/\tg{prod}/\tg{lim} body runs to the end of the formula or to the
+first \tg{=}, so the right-hand side of an identity stays outside the
+operator:
+
+\begin{slcode}
+$sum(i=1, n) i = n(n+1)/2$
+$lim(x->0) sin(x)/x = 1$
+$lim(x->+inf) 1/x$
+\end{slcode}
+
+\subsection{Functions and trigonometry}
+
+Function names are set upright automatically --- no backslashes:
+\tg{sin cos tan cot sec csc}, the inverses \tg{arcsin arccos arctan}, the
+hyperbolics \tg{sinh cosh tanh coth}, and \tg{ln log exp det dim gcd deg ker
+arg max min sup}. A name glued to \tg{(...)} takes its argument as one atom,
+so fractions and powers behave:
+
+\begin{slcode}
+$sin(x)^2 + cos(x)^2 = 1$
+$tan(x) = sin(x)/cos(x)$
+\end{slcode}
+
+\subsection{Integrals}
+
+The integral family names its variable and bounds in the head \tg{(...)} and
+captures the integrand as its body; the differential is appended for you. No
+bounds gives a primitive, a comma-separated pair a definite integral:
+
+\begin{slcode}
+$int(x) f(x)$              % primitive
+$int(x=a, b) f(x)$         % definite
+\end{slcode}
+
+Separate several domains with \tg{;} for multiple integrals: the count of
+domains chooses $\int$, $\iint$ or $\iiint$, and the differentials come out in
+reverse order (the Fubini convention). A single named domain is a region
+integral:
+
+\begin{slcode}
+$int(x=a, b ; y=c, d) f(x,y)$
+$int(D) f$
+\end{slcode}
+
+Three named integrals complete the family: \tg{contourint(C) f(z)} a contour
+integral $\oint$, \tg{pvint(x=a, b) f(x)} a Cauchy principal value, and
+\tg{meanint(x=a, b) f(x)} the average (normalised) integral.
+
+\subsection{Derivatives}
+
+A Leibniz derivative is written as the fraction it is, and the differential
+\tg{d} is set upright (ISO 80000-2), matching the \tg{d} of the integrals.
+The romanisation triggers \emph{only} when both sides of the fraction carry
+the differential, so a variable named \tg{d} is never disturbed: \tg{d/2}
+stays the fraction d over 2.
+
+\begin{slcode}
+$dy/dx$                 % upright d
+$(d^2 y)/(dx^2)$        % second derivative
+$dy/dx + y = 0$         % differential equation
+\end{slcode}
+
+Partial derivatives use \tg{partial} ($\partial$); parenthesise each side so
+the fraction groups correctly:
+
+\begin{slcode}
+$(partial f)/(partial x)$
+$(partial u)/(partial t) = (partial^2 u)/(partial x^2)$
+\end{slcode}
+
+Inject a computed value with \tg{\#\{expr\}} (or \tg{\#name}), including
+inside maths: \Verb|$#k^2$|. Decimal numbers follow the \tg{lang} option.
+
+\subsection{Maths blocks}
+
+Matrices and systems are blocks: \textbf{one line is one row}, and inside a
+matrix \tg{;} separates the entries.
+
+\begin{slcode}
+<matrix>{
+1 ; 2 ; 3
+4 ; 5 ; 6
+}
+\end{slcode}
+
+\tg{<matrix>} draws parentheses, \tg{<det>} the vertical bars of a
+determinant, \tg{<bmatrix>} square brackets. A single \tg{|} inside a row
+draws the separation bar of an \textbf{augmented matrix}, at the column where
+you type it; it is allowed on \tg{matrix} and \tg{bmatrix}, never on \tg{det}:
+
+\begin{slcode}
+<bmatrix>{
+2 ; 1 | 7
+1 ; -1 | 1
+}
+\end{slcode}
+
+A \tg{<system>} stacks equations under a brace and aligns them on the first
+relational operator:
+
+\begin{slcode}
+<system>{
+2x + 3y = 7
+x - y = 1
+}
+\end{slcode}
+
+% =====================================================================
+\section{Function studies}
+% =====================================================================
+
+Three tags turn a function into a variation table and a curve. They share
+one source of truth: a \emph{function object} built once with \tg{<fn>},
+then read by \tg{<vartab>} (the table) and \tg{<plot>} (the graph).
+
+\subsection{The function object}
+
+\begin{slcode}
+let k = <fn name:{k(x)}
+            expr:{(x^2+1)/(x-1)}
+            x:{-inf | 1-sqrt(2) | 1 | 1+sqrt(2) | +inf}
+            second:{- | - || + | +}
+            deriv:{+ | - || - | +}
+            var:{-inf / 2-2sqrt(2) \ -inf || +inf \ 2+2sqrt(2) / +inf}>
+\end{slcode}
+
+\tg{let NAME = <fn \dots>} stores the object under \texttt{NAME} (the
+assignment may span several lines, up to the closing \tg{>}). The fields are
+\tg{name:} (function and variable, fixing the row labels), \tg{expr:} (the
+formula, read only by \tg{<plot>}), \tg{x:} (remarkable abscissas separated
+by \tg{|}), \tg{deriv:} and \tg{second:} (sign of the first and second
+derivative, one per interval), and \tg{var:} (the variation line).
+
+\subsection{The table}
+
+\tg{<vartab k>} reads the object; or write the data inline with
+\tg{<vartab x:\{\dots\} deriv:\{\dots\} var:\{\dots\}>}. Only \tg{x:} and
+\tg{var:} are required, so the table comes in four shapes:
+
+\begin{itemize}
+\item \tg{second:} + \tg{deriv:} --- full study: $x$, $f''(x)$, $f'(x)$, $f(x)$
+\item \tg{deriv:} --- classic variation table: $x$, $f'(x)$, $f(x)$
+\item \tg{second:} --- convexity table: $x$, $f''(x)$, $f(x)$
+\item neither --- plain value table: $x$, $f(x)$
+\end{itemize}
+
+Sign lines take one sign per interval (\tg{+}, \tg{-}, or empty); \tg{||}
+marks a forbidden value and crosses every row; zeros at sign changes are
+placed automatically. In \tg{var:}, a connector is \tg{/} (rising) or
+\tg{\textbackslash} (falling) \emph{surrounded by spaces} --- glued, as in
+\tg{2/3}, it is a fraction. A value between two arrows of the same direction
+is rejected: the table lists only bounds and extrema.
+
+\subsection{The graph}
+
+\begin{slcode}
+<plot k samples:200 x:{-4, 6} y:{-10, 12}>
+\end{slcode}
+
+\tg{<plot k>} reads \tg{expr:} and \tg{name:} from the object. \tg{x:\{a, b\}}
+is the horizontal display window (defaults to the table's finite abscissas),
+\tg{y:\{c, d\}} the vertical window (needed when the function runs to
+infinity), \tg{samples:N} the number of points. The formula is translated to
+the plotter's syntax (variable renamed, trigonometry in degrees, implicit
+products made explicit) and poles are handled so no spurious line joins the
+branches. Supported in \tg{expr:}: \verb!+ - * / ^!, parentheses,
+\texttt{sin cos tan exp ln log sqrt abs}, and \texttt{pi}.
+
+\tg{<vartab>} is declarative, \tg{<plot>} is computed: keeping \tg{var:}
+consistent with \tg{expr:} is the author's responsibility.
+
+% =====================================================================
+\section{Lists}
+% =====================================================================
+
+\tg{<list:STYLE>\{ \dots \}} makes a list; the style is required and comes
+right after the name. One item per non-empty line --- no item tag. A
+\tg{<list:\dots>} written under an item becomes its sub-list, nested as deep
+as you like.
+
+\begin{slcode}
+<list:disc>{
+Fruits
+<list:circle>{
+apples
+pears
+}
+Vegetables
+}
+\end{slcode}
+
+Styles --- bullets: \tg{none} \tg{disc} \tg{circle} \tg{square}; numbered:
+\tg{decimal} \tg{alpha} \tg{ALPHA} \tg{roman} \tg{ROMAN} (the case of the
+keyword sets the case of the letters); checkboxes: \tg{check}.
+
+% =====================================================================
+\section{Boxes}
+% =====================================================================
+
+\begin{slcode}
+<box line:Crimson fill:MistyRose radius:4 title:{A note}>{
+Content here.
+}
+\end{slcode}
+
+Options: \tg{line:} frame colour, \tg{fill:} background, \tg{text:} text
+colour, \tg{radius:N} rounded corners (mm), \tg{width:N} or \tg{width:N\%},
+\tg{boxrule:N}, \tg{boxsep:N}, \tg{break:yes} (allow page breaks),
+\tg{title:\{\dots\}}, \tg{titlefill:}, \tg{titletext:}. A line containing
+only \tg{-{-}-} splits a box into an upper and a lower region.
+
+\tg{<row gap:N>\{ \dots \}} lays its child boxes side by side, with equal
+widths and equalised heights. A \tg{row} accepts only \tg{<box>} children.
+
+A box also takes a \textbf{two-letter placement code} (\tg{tl tc tr ml mc mr
+bl bc br}, default \tg{tl}) that positions its content; the vertical part
+needs a \tg{height:} to have room to act.
+
+% =====================================================================
+\section{Grid (named-area layout)}
+% =====================================================================
+
+For full-page layouts, \tg{<grid>} borrows CSS Grid's named-area idea. A
+\tg{template:[ \dots ]} of quoted rows draws the layout; each word names the
+cell at that position. A name repeated \textbf{horizontally} spans columns;
+repeated \textbf{vertically} it spans rows. A dot \tg{.} is an empty cell.
+Each name must form a solid rectangle.
+
+\begin{slcode}
+<grid template:[
+  "title  title  logo"
+  "intro  info   logo"
+  "body   body   body"
+] gap:4>{
+  <area title>{ <Red b 16pt>Maths assessment }
+  <area logo >{ <img>{blason.png} }
+  <area intro>{ Instructions: no calculator. }
+  <area info >{ Name: <nextline> First name: }
+  <area body line:Navy fill:AliceBlue radius:2 title:{Exercise 1}>{
+    Solve the equation...
+  }
+}
+\end{slcode}
+
+An area can be framed like a box by giving it the same options
+(\tg{line:}, \tg{fill:}, \tg{radius:}, \tg{title:}). An area with no options
+stays invisible (a bare cell). The grid itself takes \tg{width:} (a
+percentage of the text width or a millimetre value) and \tg{height:} (a
+millimetre value fixing the total height).
+
+% =====================================================================
+\section{Block aliases}
+% =====================================================================
+
+Define a reusable component once; \tg{\#param} placeholders are filled at the
+call site, and the call-site body becomes the block content.
+
+\begin{slcode}
+let card{title, frame} = <box title:{#title} line:#frame radius:2>
+
+<card First, Crimson>{
+Called with two arguments. No box options to repeat.
+}
+<card Second, Navy>{
+Same component, different look.
+}
+\end{slcode}
+
+% =====================================================================
+\section{Control flow}
+% =====================================================================
+
+\begin{slcode}
+for n in 1..3 {            % numeric range
+<c Navy b>Sheet #n
+}
+
+for f in [chat.png, chien.png] {   % explicit list
+<img 16>{#f}
+}
+
+if score >= 10 {
+<Green>Passed.
+} else {
+<Red>Try again.
+}
+\end{slcode}
+
+Loops and conditions work in the document body, inside boxes, and inside
+table bodies. The loop variable interpolates everywhere via \tg{\#}.
+
+% =====================================================================
+\section{Escapes}
+% =====================================================================
+
+To print a character that scholatex treats specially, double it:
+\tg{<<} \tg{>>} give a literal \tg{<} \tg{>}, \tg{\{\{} \tg{\}\}} a literal
+\tg{\{} \tg{\}}, and \tg{\#\#} a literal \tg{\#}. A backslash
+\tg{\textbackslash} is an ordinary character --- write it as itself, so a
+Windows path like \tg{C:\textbackslash Users} just works. The characters
+\tg{\_ \\tg{\_ \& \% \textasciitilde} are escaped automatically. \% \textasciitilde \textasciicircum} are escaped automatically.
+
+Braces carry structure (they delimit blocks and groups), so a \emph{literal}
+brace must be \textbf{balanced}: write the pair \tg{\{\{\dots\}\}} to print
+\tg{\{\dots\}}. A lone, unmatched \tg{\{\{} or \tg{\}\}} is reported as an
+unbalanced brace naming its line, rather than silently swallowing the rest of
+the document --- so set-builder notation like \tg{\{\{ x : x > 0 \}\}} is
+written as a pair and prints as one. Angle brackets and hashes have no such
+constraint; only braces need to balance.
+
+A line break is the tag \tg{<nextline>}; it works in running text and inside table
+cells. In ordinary text a blank line already starts a new paragraph, so
+\tg{<nextline>} is only needed for a break \emph{without} a paragraph change.
+
+A line whose first non-space character is \tg{\%} is a \textbf{comment} and
+is dropped. A bare \tg{\#} not followed by a name or \tg{\{\dots\}} is a
+literal \tg{\#}: only \tg{\#name} and \tg{\#\{expr\}} interpolate.
+
+% =====================================================================
+\section{Security}\label{sec:security}
+% =====================================================================
+
+scholatex evaluates \tg{let name = expr}, \tg{\#\{expr\}} and the conditions
+of \tg{for}/\tg{if}/\tg{while} as Lua at compile time, so by default a
+document can run arbitrary code --- exactly like \tg{\textbackslash directlua}.
+
+Setting \tg{untrusted=true} runs that Lua in a restricted environment: only
+pure, side-effect-free names are visible (the maths the document needs plus
+\tg{string}/\tg{table} helpers), while \tg{os}, \tg{io}, \tg{package},
+\tg{require}, \tg{load}, \tg{debug}, \tg{setmetatable} and \tg{getmetatable}
+are absent. A blocked access stops the compile with a clear message; a runaway
+loop is aborted by an instruction-count ceiling. Because the step counter
+cannot interrupt work inside a single C call, \tg{string.rep} and
+\tg{string.format} are capped --- both through the global \tg{string} table
+and through method calls on a string value (\tg{("x"):rep(n)}), which a
+restricted string metatable routes to the same capped functions.
+
+\textbf{Scope.} \tg{untrusted} hardens the scholatex expression layer only.
+It does \emph{not} sandbox LuaLaTeX as a whole: a hostile \tg{.tex} can still
+call \tg{\textbackslash directlua}, \tg{\textbackslash write18} (with
+shell-escape), \tg{\textbackslash input}, and so on. To compile a whole
+\tg{.tex} you do not trust, run \tg{lualatex} \textbf{without}
+\tg{-{-}shell-escape}, ideally inside a container.
+
+% =====================================================================
+\section{Examples}
+% =====================================================================
+
+The \tg{examples/} folder contains six self-contained, fully commented
+documents that together exercise every feature:
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{File} & \textbf{Covers} \\
+\midrule
+\tg{text-style.tex} & case rule, styles, colours, fonts, sizes, alignment, escapes, aliases, TOC \\
+\tg{containers.tex} & tables, boxes and the named-area grid \\
+\tg{math-language.tex} & mini-language, sets, logic, negation, integer part, the overline \\
+\tg{math-analysis.tex} & operators, limits, trigonometry, derivatives, integrals \\
+\tg{math-algebra.tex} & matrix, determinant, augmented matrix, systems \\
+\tg{functions.tex} & full function studies with variation tables and plots \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Compile any of them with \tg{lualatex <file>.tex} from the \tg{examples/}
+folder. The image folders \tg{IMG/} and \tg{IMAGES/PNG/} ship alongside them;
+\tg{containers.tex} uses \tg{imgdir=\{IMG, IMAGES/PNG\}} to show that bare
+image names are resolved across several directories.
+
+% =====================================================================
+\section{Diagnostics}
+% =====================================================================
+
+Errors point at the source line, e.g.
+\tg{scholatex: line 12: unknown tag attribute: 'xyz'}. Defining an alias
+whose name is a built-in (\tg{let section = \dots}, \tg{let tab = \dots})
+prints a warning: the built-in always wins, so the alias would be silently
+dead --- pick a different name.
+
+\vfill
+\begin{center}\small\color{black!55}
+scholatex --- Released under the GNU General Public License v3.0.
+\end{center}
+
+\end{document}
