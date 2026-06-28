@@ -1,0 +1,197 @@
+% !TeX program = lualatex
+% =====================================================================
+%  02-containers.tex
+%  The three layout containers, each built up from its simplest form —
+%  and each shown holding what it really holds: not just text, but
+%  formulas, images, lists and nested blocks. Tables, then boxes, then
+%  the named-area grid that assembles a full worksheet header.
+% =====================================================================
+\documentclass[
+  margins=18,
+  size=11,
+  imgdir={IMG, IMAGES/PNG}
+]{scholatex}
+\begin{document}
+
+let title = <Red b 18pt c>
+let h1    = <line Navy b section>
+let h2    = <Teal i subsection>
+
+<title>Simple LaTeX — containers
+
+% =====================================================================
+<h1>Tables, step by step
+% =====================================================================
+
+<h2>Bare alignment
+A table with neither borders nor header is just aligned columns. Columns
+are declared in brackets, one two-letter placement code per column: the
+first letter is vertical (t/m/b), the second horizontal
+(l/c/r). N: before the code fixes a width in mm. Here
+[ml, mc, mr] sends the three columns left, centre and right; the
+vertical part has nothing to do yet, since every cell is one line tall — it
+comes into play once a row holds something taller, as the next table shows.
+<table [ml, mc, mr]>{
+	Apple | Pear | Plum
+	Cat | Dog | Horse
+}
+
+<h2>Borders, header, and mixed content
+borders draws the rules; header bolds the first row. A cell may
+hold a formula or an image, not only text. Each column's placement is given
+by a two-letter code right in the brackets: the first letter is vertical
+(t top, m middle, b bottom), the second horizontal
+(l/c/r). So [mc, tl, br] centres the figure in its cell, keeps the
+formula top-left, and drops the value to the bottom-right — each column placed
+in both directions at once. The vertical part shows whenever a row is taller
+than its shortest cell, as the image below makes the formulas do.
+<table [mc, tl, br] borders header>{
+	Figure | Formula | Value
+	<img 20>{chat.png} | $1/2 + 1/3$ | $5/6$
+	<img 40>{chien.png} | $sqrt(2)$ | $1.41$
+}
+
+<h2>Spanning cells
+A cell tagged <<colspan:N mc>> covers N columns; <<rowspan:N mc>>
+covers N rows, and each cell it absorbs below is a lone ..
+<table [mc, ml, mc, mc] borders header>{
+	<colspan:4 mc>{Term report}
+	Day | Subject | Mark | Coef.
+	<rowspan:2 mc>{Monday} | Maths | 15 | 4
+	. | French | 12 | 3
+}
+
+<h2>Colour, applied to the table itself
+fill: colours the body, line: the rules, and
+headerfill: / headertext: the header row — no wrapping box.
+<table [mc, ml, mc] borders header gap:3 fill:AliceBlue line:Navy headerfill:Navy headertext:White>{
+	Day | Subject | Mark
+	Monday | Maths | 15
+	Tuesday | French | 12
+}
+
+<h2>Dynamic rows
+The column count is checked on every row, so loops and interpolation work
+inside a table.
+<table [mc, ml, mc] borders header>{
+	<colspan:3 mc>{Table of squares}
+	n | Caption | Square
+	for n in 1..3 {
+		#n | line #n | $#n^2$
+	}
+}
+
+<h2>Multi-line cells
+A cell can hold more than one line: the tag <<nextline>> breaks the
+line where you put it, so an address or a two-part label stacks inside a
+single cell.
+<table [ml, ml] borders header>{
+	Field | Entry
+	Name | Surname: <nextline> First name:
+	Address | Street and number <nextline> Town and postcode
+}
+
+% =====================================================================
+<h1>Boxes, step by step
+% =====================================================================
+
+<h2>A framed note, with a formula inside
+line: sets the frame, fill: the background, radius:N
+rounds the corners, title: adds a bar. The body is ordinary scholatex, so
+maths and styling live in it freely.
+<box line:Crimson fill:MistyRose radius:4 title:{Key identity}>{
+	The remarkable identity $(a + b)^2 = a^2 + 2*a*b + b^2$ holds for all
+	real numbers. The <b>{cross term} $2*a*b$ is the one pupils forget.
+}
+
+<h2>Problem and solution, with an image and a list
+A line holding only --- splits a box into an upper and a lower part.
+Either part may hold anything — here an image up top, a numbered method below.
+<box line:DarkSlateGray fill:WhiteSmoke radius:2 title:{Problem}>{
+	<c>{<img 22>{chat.png}}
+	Measure the cat's height in the picture, to scale 1:10.
+	---
+	<list:decimal>{
+		Read the height in millimetres.
+		Multiply by 10.
+		Give the answer in centimetres.
+	}
+}
+
+<h2>Boxes side by side, holding different things
+<<row>> lays its child boxes in equal-width, equal-height columns. One
+holds prose, the other a formula and an image — the columns still align.
+<row gap:5>{
+	<box line:Crimson fill:MistyRose radius:2 title:{Statement}>{
+		<tab>The perimeter of a right triangle with legs of lengths 3 and 4 is found to be 12 units by first calculating the hypotenuse using the Pythagorean theorem.
+		<tab>The calculation shows that the hypotenuse is 5, leading to a total perimeter of 12.
+	}
+	<box line:Navy fill:AliceBlue radius:2 title:{Result}>{
+		Hypotenuse: $sqrt(3^2 + 4^2) = 5$.
+		<c>{<img 18>{chien.png}}
+	}
+}
+
+<h2>A reusable component
+The factoring tool at the block level: define a card once, call it with
+arguments, and its call-site body — formulas included — becomes the content.
+let exo{n} = <box title:{Exercise #n} line:Navy fill:AliceBlue radius:2>
+for n in 1..2 {
+	<exo #n>{
+		Compute $#n^2 + #n$ and write the result below.
+		<2lines>
+	}
+}
+
+% =====================================================================
+<h1>Grid: a named-area layout
+% =====================================================================
+The grid arranges named areas like CSS Grid. The template draws the layout
+with one word per cell; a name repeated across cells spans them. Each
+<<area>> takes the same box options and a two-letter placement code,
+and — like a box — holds text, maths, images, lists or nested blocks. Here
+the header spans two columns, the figure panel two rows, and the body the
+full width.
+<grid template:[
+	"head head fig"
+	"intro rules fig"
+	"body body body"
+] gap:3 width:100% height:95>{
+	<area head mc line:Navy fill:AliceBlue radius:2 title:{Assessment}>{
+		<b 14pt>Mathematics — Year 9
+	}
+	<area fig mc line:Crimson fill:MistyRose radius:2 title:{Figure}>{
+		<img 30>{chien.png}
+	}
+	<area intro line:Teal fill:LightCyan radius:1>{
+		Time: 50 min. No calculator.
+	}
+	<area rules line:Goldenrod fill:LightYellow radius:1>{
+		<list:check>{
+			Show every step
+			Box your answers
+		}
+	}
+	<area body j line:DarkSlateGray fill:WhiteSmoke radius:2 title:{Exercise 1}>{
+		Solve $2*x + 3 = 7$ and check that $x$ satisfies $x > 0$.
+	}
+}
+
+<h1>Nesting and many-line titles
+A container holds anything another container holds, so blocks nest as deep
+as the page allows. A centred, bold figure stacks three tags whose closing
+braces all meet at the end --- and the layout still resolves cleanly.
+<box line:DarkSlateGray fill:WhiteSmoke radius:2 title:{Deep nesting}>{
+	<c>{<b>{<img 18>{chien.png}}}
+	Centred, bold, framed: three closing braces in a row, no ambiguity.
+}
+
+A box title is ordinary text, so it may run across several lines and carry
+any character --- including a chevron that has nothing to do with a tag:
+<box line:Crimson fill:MistyRose radius:3 title:{threshold a > b,
+checked on two lines}>{
+	The title wrapped onto a second line and held a literal $>$ sign.
+}
+
+
+\end{document}
