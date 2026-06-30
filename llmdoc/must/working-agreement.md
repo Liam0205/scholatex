@@ -5,7 +5,7 @@
 Before editing `scholatex.cls`, `scholatex.lua`, or any `scholatex-*.lua` module:
 
 1. State the intent to the user in one or two sentences.
-2. Read the relevant `architecture/*.md` document and the matching `reference/*.md` (or scratch report under `.llmdoc-tmp/investigations/` if no stable doc exists yet).
+2. Read the relevant `architecture/*.md` document and the matching `reference/*.md` (or, when no stable doc exists yet, the closest evidence: the source itself, the relevant `memory/reflections/` entry, or any scratch investigation report the recorder has not yet synthesised).
 3. Confirm the plan touches only the boundary the architecture doc describes. Cross-module patches are higher risk and need explicit user agreement.
 
 For trivial changes (typos, comment fixes, single-line corrections in `examples/`) just do them.

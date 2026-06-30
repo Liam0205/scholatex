@@ -157,7 +157,7 @@ Algorithm (`scripts/check-parallel.sh:46-121`):
 8. **Trap on EXIT** (`scripts/check-parallel.sh:68`): on success, wipe the workdir; on failure, preserve it for post-mortem and print the path to stderr.
 9. **Per-bucket worker** (`scripts/check-parallel.sh:75-121`):
    - Compute `--first` / `--last` from the slice bounds (`.lvt` basenames without extension).
-   - **Isolated tree copy** via `git ls-files -z | tar --null -T- -cf - | tar -xf - -C "$workdir"` (`scripts/check-parallel.sh:91-93`) — delivers exactly the tracked files (no `build/`, no `.code-review/`, no `.llmdoc-tmp/`). Fallback to `cp -a` plus an explicit clean-up if git is unavailable.
+   - **Isolated tree copy** via `git ls-files -z | tar --null -T- -cf - | tar -xf - -C "$workdir"` (`scripts/check-parallel.sh:91-93`) — delivers exactly the tracked files; any untracked worktree state (build outputs, local scratch directories) is filtered out by `git ls-files`. Fallback to `cp -a` plus an explicit clean-up if git is unavailable.
    - **Spawn** in a subshell with `set +e` (`scripts/check-parallel.sh:101-117`) — this is critical. Without `set +e`, the parent shell's `set -e + pipefail` causes the subshell to exit on l3build's non-zero exit before the diff-dump block can run.
    - `l3build check --first "$first" --last "$last" -q 2>&1 | awk -v p="[$label] " '{print p $0; fflush()}'` prefixes every line with `[bN]` for legibility.
    - Capture l3build's exit via `${PIPESTATUS[0]}` because the awk pipe would otherwise eat it.

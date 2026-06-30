@@ -111,7 +111,7 @@ Run this after adding a new `\RequirePackage` to `scholatex.cls` or after pullin
 | Section | Detail | Citation |
 |---|---|---|
 | Triggers | `pull_request` to `main`, `push` to `main`, `workflow_dispatch` | `ci.yml:8-10, 19-21` |
-| paths-ignore | `llmdoc/**`, `**/README.md`, `CHANGELOG.md`, `LICENSE`, `.gitignore`, `.githooks/**`, `.code-review/**` (both PR and push) | `ci.yml:11-18, 21-28` |
+| paths-ignore | `llmdoc/**`, `**/README.md`, `CHANGELOG.md`, `LICENSE`, `.gitignore`, `.githooks/**` (both PR and push) | `ci.yml:11-17, 20-26` |
 | Concurrency group | `ci-${{ github.head_ref || github.ref_name }}-${{ github.event_name }}` | `ci.yml:33-34` |
 | cancel-in-progress | `${{ github.ref_name != 'main' }}` (PRs cancel older runs; main always completes) | `ci.yml:35` |
 | `TL_VERSION` env | `'2026'` | `ci.yml:38` |

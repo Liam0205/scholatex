@@ -85,15 +85,17 @@ for ((n = 1; n <= BUCKETS; n++)); do
 
     workdir="$WORK_ROOT/$n"
     mkdir -p "$workdir"
-    # Use `git archive` style copy so we get exactly the tracked tree (no
-    # build/ leftovers, no .code-review/ scratch); fall back to cp -a if
-    # git is unavailable (unlikely but defensive).
+    # Use `git archive` style copy so we get exactly the tracked tree
+    # (no build/ leftovers, no untracked scratch); fall back to cp -a
+    # if git is unavailable (unlikely but defensive).
     if command -v git >/dev/null && [ -d "$REPO_ROOT/.git" ]; then
         (cd "$REPO_ROOT" && git ls-files -z | tar --null -T- -cf -) \
             | tar -xf - -C "$workdir"
     else
         cp -a "$REPO_ROOT/." "$workdir/"
-        rm -rf "$workdir/build" "$workdir/tmp" "$workdir/.code-review"
+        # Drop common gitignored worktree state; the cp -a path is a
+        # rare fallback so this enumeration is not the source of truth.
+        rm -rf "$workdir/build" "$workdir/tmp"
     fi
 
     label="b$n"

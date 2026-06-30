@@ -1,6 +1,6 @@
 # Doc Gaps
 
-A rolling list of documentation gaps, doc-vs-code drifts, and undocumented surfaces discovered during the wave-1 init investigations (scratch reports 02-10 under `.llmdoc-tmp/investigations/`). Group by category. Every row cites the documentation side and the code side with `file:line`.
+A rolling list of documentation gaps, doc-vs-code drifts, and undocumented surfaces discovered during the wave-1 init investigations and later development. Group by category. Every row cites the documentation side and the code side with `file:line`.
 
 ## Real user-visible bugs
 

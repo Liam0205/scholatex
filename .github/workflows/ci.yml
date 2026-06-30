@@ -15,7 +15,6 @@ on:
       - 'LICENSE'
       - '.gitignore'
       - '.githooks/**'
-      - '.code-review/**'
   push:
     branches: [main]
     paths-ignore:
@@ -25,7 +24,6 @@ on:
       - 'LICENSE'
       - '.gitignore'
       - '.githooks/**'
-      - '.code-review/**'
   workflow_dispatch:
 
 # Cancel superseded runs on the same ref to keep CI quota tight, but
