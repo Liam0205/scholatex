@@ -128,6 +128,8 @@ local _keep_patterns = {
   "^Class scholatex Warning",     -- \ClassWarning
   "^[^:]-scholatex%.lua:",        -- stack trace from scholatex.lua
   "^[^:]-scholatex%-[%w_-]+%.lua:", -- stack trace from scholatex-*.lua
+  "^PIN:",                        -- typesetting invariant lines
+                                  -- (\TYPE{PIN: ...} in pin-*.lvt files)
   "^This is a generated file",    -- l3build header line 1
   "^Don't change this file",      -- l3build header line 2
   "^%*+$",                        -- the recordstatus separator (***)
