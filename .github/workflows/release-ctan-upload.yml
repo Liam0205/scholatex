@@ -87,13 +87,21 @@ jobs:
             --repo "${{ github.repository }}" \
             --pattern '*.zip' \
             --dir build/distrib/ctan
-          # l3build upload expects build/distrib/ctan/<module>-ctan.zip
+          # l3build upload's uploadfile is "scholatex-ctan.zip"
+          # resolved relative to CWD (the repo root), NOT relative to
+          # build/distrib/ctan/. A local `make ctan` happens to also
+          # drop a copy at the repo root, which is why the upload step
+          # works there but failed on the CI runner. Mirror that
+          # behaviour explicitly here: keep the download under
+          # build/distrib/ctan/ for symmetry with `make ctan`, AND
+          # copy a fresh file to the repo root so l3build can find it.
           src=$(ls build/distrib/ctan/*.zip | head -1)
           dst="build/distrib/ctan/scholatex-ctan.zip"
           if [ "$src" != "$dst" ]; then
             mv "$src" "$dst"
           fi
-          ls -la build/distrib/ctan/
+          cp "$dst" scholatex-ctan.zip
+          ls -la build/distrib/ctan/ scholatex-ctan.zip
 
       - name: l3build upload
         env:
