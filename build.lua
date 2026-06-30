@@ -68,7 +68,7 @@ small tag-based language for writing teaching worksheets — exams, drills,
 problem sheets — without learning the LaTeX core. It ships a styling
 vocabulary, a math mini-language, a declarative geometry block (<draw>),
 and renderers for boxes, tables, function studies and grids.]],
-  topic        = { "class", "luatex", "education", "maths-doc" },
+  topic        = { "class", "luatex", "teaching", "maths-doc" },
   ctanPath     = "/macros/luatex/latex/scholatex",
   repository   = "https://github.com/gdubard/scholatex",
   bugtracker   = "https://github.com/gdubard/scholatex/issues",
