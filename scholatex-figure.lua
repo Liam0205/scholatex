@@ -289,7 +289,7 @@ local function compute(line, dict)
   if tag=="triangle" then
     if #P~=3 then error("scholatex: triangle needs 3 points, got "..#P) end
     if attrs.equilateral then verts,marks=Tri.equilateral(P,num(attrs.side,"side"))
-    elseif attrs.isosceles then verts,marks=Tri.isosceles(P,num(attrs.side,"side"),num(attrs.base,"base"))
+    elseif attrs.isosceles then verts,err=Tri.isosceles(P,num(attrs.side,"side"),num(attrs.base,"base"))
     elseif attrs.right~=nil then
       local at=1
       if type(attrs.right)=="string" then for k,ch in ipairs(P) do if ch==attrs.right then at=k end end end
