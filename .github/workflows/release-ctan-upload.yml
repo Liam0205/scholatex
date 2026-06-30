@@ -1,0 +1,121 @@
+name: CTAN upload
+
+# Manual second stage of the release flow. Triggered only via
+# workflow_dispatch so the operator can choose dry-run vs live and
+# supply uploader / email / note interactively.
+#
+# Expects an existing GitHub prerelease produced by release.yml (the
+# CTAN zip is downloaded from that release rather than rebuilt). On
+# successful live upload, flips the GitHub release from prerelease to
+# --latest.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to upload (e.g. v2.4)"
+        required: true
+        type: string
+      uploader:
+        description: "CTAN form: uploader real name"
+        required: true
+        type: string
+      email:
+        description: "CTAN form: contact email for reviewer reply"
+        required: true
+        type: string
+      note:
+        description: "CTAN form: internal note (<= 4096 bytes), optional"
+        required: false
+        type: string
+        default: ''
+      dry_run:
+        description: "Dry-run only? (true = no actual CTAN submission)"
+        required: true
+        type: boolean
+        default: true
+
+env:
+  TL_VERSION: '2026'
+
+permissions:
+  contents: write   # for gh release edit
+
+jobs:
+  upload:
+    name: l3build upload (dry-run = ${{ inputs.dry_run }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # On live uploads, gate behind a protected GH environment so a
+    # required reviewer must approve before the job runs. Dry-runs
+    # skip the gate so anyone with workflow_dispatch can trial them.
+    environment: ${{ inputs.dry_run && '' || 'ctan-release' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Validate inputs
+        run: |
+          tag="${{ inputs.tag }}"
+          if ! printf '%s' "$tag" | grep -qE '^v[0-9]+\.[0-9]+(\.[0-9]+)?(-rc[0-9]+)?$'; then
+            echo "::error::tag '$tag' does not match v<X.Y>[.<Z>][-rcN]"
+            exit 1
+          fi
+          note="${{ inputs.note }}"
+          if [ "$(printf '%s' "$note" | wc -c)" -gt 4096 ]; then
+            echo "::error::note exceeds CTAN's 4096-byte limit"
+            exit 1
+          fi
+
+      - name: Set up TeX Live
+        uses: TeX-Live/setup-texlive-action@v4
+        with:
+          version: ${{ env.TL_VERSION }}
+          packages: |
+            scheme-minimal
+            l3build
+            luatex
+          cache: true
+
+      - name: Download release zip
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p build/distrib/ctan
+          gh release download "${{ inputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --pattern '*.zip' \
+            --dir build/distrib/ctan
+          # l3build upload expects build/distrib/ctan/<module>-ctan.zip
+          src=$(ls build/distrib/ctan/*.zip | head -1)
+          dst="build/distrib/ctan/scholatex-ctan.zip"
+          if [ "$src" != "$dst" ]; then
+            mv "$src" "$dst"
+          fi
+          ls -la build/distrib/ctan/
+
+      - name: l3build upload
+        env:
+          CTAN_UPLOADER: ${{ inputs.uploader }}
+          CTAN_EMAIL:    ${{ inputs.email }}
+          CTAN_NOTE:     ${{ inputs.note }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "::notice::dry-run upload (no actual CTAN submission)"
+            echo n | l3build upload --dry-run
+          else
+            echo "::notice::LIVE upload to CTAN"
+            echo y | l3build upload
+          fi
+
+      - name: Promote release to latest
+        if: ${{ inputs.dry_run == false }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "${{ inputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --prerelease=false \
+            --latest
+          echo "::notice::release ${{ inputs.tag }} marked as latest"
