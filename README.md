@@ -594,7 +594,7 @@ Loops and conditions work in the document body, inside boxes, and inside table b
 
 ## Escapes
 
-To print a character that scholatex treats specially, **double it**: `<<` `>>` `{{` `}}` `##` give a literal `<` `>` `{` `}` `#`. The backslash is an ordinary character — a path like `C:\Users\Leo` or a regex `\d+\s*\w` prints verbatim, nothing to escape. The characters `_ & % ~` are escaped automatically. A line break inside a paragraph is the tag `<nextline>`. A line whose first non-space character is `%` is a comment. A bare `#` not followed by a name or `{…}` is a literal `#`.
+To print a character that scholatex treats specially, **double it**: `<<` `>>` `{{` `}}` `##` give a literal `<` `>` `{` `}` `#`. The backslash is an ordinary character — a path like `C:\Users\Leo` or a regex `\d+\s*\w` prints verbatim, nothing to escape. The characters `_ & % ^ ~` are escaped automatically. A line break inside a paragraph is the tag `<nextline>`. A line whose first non-space character is `%` is a comment. A bare `#` not followed by a name or `{…}` is a literal `#`.
 
 Braces carry structure, so a **literal brace must be balanced**: write the pair `{{…}}` to print `{…}`. A lone, unmatched `{{` or `}}` is reported as an unbalanced brace naming its line, rather than silently corrupting the surrounding block — so set-builder notation like `{{ x : x > 0 }}` is written as a pair. Angle brackets and hashes need no such balancing; only braces do.
 
