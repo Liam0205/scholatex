@@ -109,13 +109,34 @@ jobs:
           CTAN_EMAIL:    ${{ inputs.email }}
           CTAN_NOTE:     ${{ inputs.note }}
         run: |
+          # l3build always prompts "Do you want to upload to CTAN? [y/n]"
+          # after a successful validate -- EVEN WITH --dry-run. This is
+          # a l3build (TL 2026) design bug: l3build-upload.lua's
+          # `if options["dry-run"] then ctanupload = false end` sets
+          # ctanupload to false, then l3build-variables.lua runs
+          # `ctanupload = ctanupload or "ask"` which overwrites the
+          # explicit false with the truthy "ask" sentinel (Lua's `or`
+          # doesn't distinguish false from nil). So --dry-run still
+          # waits on stdin; if stdin is EOF, `io.read()` returns nil
+          # and the script crashes at `string.lower(nil, 1, 1)`.
+          #
+          # Workaround (mirroring ctex-kit): pipe a one-char answer +
+          # newline via `printf` to satisfy the unwanted prompt. n in
+          # dry-run keeps the upload local; y in live mode confirms.
+          # --email is also passed explicitly on the CLI as a belt-
+          # and-braces backstop in case build.lua doesn't read the
+          # env var.
+          ARGS=(--email "${{ inputs.email }}")
           if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS+=(--dry-run)
+            ANSWER=n
             echo "::notice::dry-run upload (no actual CTAN submission)"
-            echo n | l3build upload --dry-run
           else
-            echo "::notice::LIVE upload to CTAN"
-            echo y | l3build upload
+            ANSWER=y
+            echo "::warning::LIVE upload to CTAN"
           fi
+          echo "l3build upload ${ARGS[*]}"
+          printf '%s\n' "$ANSWER" | l3build upload "${ARGS[@]}"
 
       - name: Promote release to latest
         if: ${{ inputs.dry_run == false }}
