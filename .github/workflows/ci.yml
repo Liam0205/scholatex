@@ -81,5 +81,7 @@ jobs:
           path: |
             build/test*/**/*.diff
             build/test*/**/*.log
+            tmp/parallel-check/**/build/test*/**/*.diff
+            tmp/parallel-check/**/build/test*/**/*.log
           if-no-files-found: ignore
           retention-days: 14

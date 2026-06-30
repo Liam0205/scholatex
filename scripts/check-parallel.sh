@@ -102,7 +102,17 @@ for ((n = 1; n <= BUCKETS; n++)); do
         cd "$workdir"
         l3build check --first "$first" --last "$last" -q 2>&1 \
           | awk -v p="[$label] " '{print p $0; fflush()}'
-        exit "${PIPESTATUS[0]}"
+        rc="${PIPESTATUS[0]}"
+        # On failure, dump every .diff l3build produced so reviewers can
+        # see the baseline drift without downloading an artifact.
+        if [ "$rc" -ne 0 ]; then
+            for d in build/test/*.diff; do
+                [ -f "$d" ] || continue
+                echo "[$label] ===== $(basename "$d") ====="
+                awk -v p="[$label] " '{print p $0}' "$d"
+            done
+        fi
+        exit "$rc"
     ) &
     pids+=($!)
 
