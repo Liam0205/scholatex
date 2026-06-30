@@ -52,6 +52,7 @@ local function warn_if_shadows(name, lineno)
       .. "the built-in '" .. name .. "' always takes precedence. "
       .. "Use a different alias name.\n")
   end
+  return native
 end
 
 local function ends_struct_open(line)
@@ -520,7 +521,7 @@ local function build_lua(src)
     do
       local oname, orest = line:match("^%s*let%s+([%a_][%w_]*)%s*=%s*<%s*fn%f[%s>](.*)$")
       if oname then
-        warn_if_shadows(oname, lineno)
+        if warn_if_shadows(oname, lineno) then goto continue end
         if orest:match(">%s*$") then
           -- objet complet sur une seule ligne
           local inner = orest:gsub(">%s*$", "")
@@ -544,7 +545,7 @@ local function build_lua(src)
     end
     local name, params, rhs = line:match("^%s*let%s+([%a_][%w_]*)%s*{(.-)}%s*=%s*(.+)$")
     if name then
-      warn_if_shadows(name, lineno)
+      if warn_if_shadows(name, lineno) then goto continue end
       local plist = {}
       for p in params:gmatch("[%a_][%w_]*") do plist[#plist + 1] = p end
       local barhs = rhs:match("^%s*<(.-)>%s*$")
@@ -568,7 +569,7 @@ local function build_lua(src)
     else
       local an, arhs = line:match("^%s*let%s+([%a_][%w_]*)%s*=%s*<(.-)>%s*$")
       if an then
-        warn_if_shadows(an, lineno)
+        if warn_if_shadows(an, lineno) then goto continue end
         local blockname, opts = nil, {}
         for w in arhs:gmatch("%S+") do
           if not blockname and sl._blocks[w] then
