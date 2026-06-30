@@ -57,7 +57,7 @@ function Tri.sss(P,a,b,c)
 end
 function Tri.sas(P,a,b,t) return {{P[1],0,0},{P[2],a,0},{P[3],b*cos(t),b*sin(t)}}, {} end
 function Tri.asa(P,angA,angB,c)
-  if angA+angB>=180 then return nil,"la somme des deux angles atteint ou dépasse 180°" end
+  if angA+angB>=180 then return nil,"the two given angles sum to 180 degrees or more" end
   local angC=180-angA-angB
   local AC=c*sin(angB)/sin(angC)
   return {{P[1],0,0},{P[2],c,0},{P[3],AC*cos(angA),AC*sin(angA)}}, {}
