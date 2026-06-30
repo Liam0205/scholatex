@@ -27,10 +27,31 @@ Every example file ships the marker `% !TeX program = lualatex` at line 1.
 - `text-style.tex` and `math-language.tex` at the repo root — byte-identical duplicates of the same-name files under `examples/` (see `memory/doc-gaps.md`).
 - `LICENSE` — GPL v3 full text.
 - `.gitignore` — ignores LaTeX intermediates plus `CLAUDE.md`, `AGENTS.md`.
+- `build.lua` — l3build configuration for the regression harness, CTAN packaging, and version derivation from `\ProvidesClass`. See `reference/build-and-ci-files.md`.
+- `Makefile` — verb wrappers (`check`, `doc`, `ctan`, `install`, `clean`), the `hooks` installer for `.githooks/`, and the `tag v<X.Y>[-rcN]` annotated-tag creator. See `architecture/test-pipeline.md` and `architecture/release-pipeline.md`.
+- `testfiles/` — the 20 `.lvt` regression / smoke tests, their `.tlg` baselines, and `testfiles/support/regression-test.cfg` (auto-staged by l3build as `testsuppdir`). See `architecture/test-pipeline.md`.
+- `scripts/check-parallel.sh` — bucketed parallel `l3build check` driver (`make check J=N`).
+- `scripts/extract-changelog.sh` — release-note extraction by version section from `CHANGELOG.md`.
+- `.github/workflows/{ci,release,release-ctan-upload}.yml` — PR-gate CI, tag-push prerelease, manual CTAN upload. See `architecture/release-pipeline.md`.
+- `.github/tl_packages` — single source of truth for the minimal TeX Live package set installed in CI. Regen recipe lives in the file header. See `reference/build-and-ci-files.md`.
+- `.githooks/commit-msg` — Conventional Commits enforcement; install via `make hooks`.
+
+Note: `scholatex.pdf` is **no longer tracked**; regenerate locally via `make doc` (`l3build doc`).
 
 ## Compile model in one paragraph
 
 `scholatex.cls` loads `extarticle` with the user's `size` and `a4paper` (`scholatex.cls:27-28`), then sets fonts, geometry, paragraphing, and several preamble macros. In `\AtBeginDocument` it runs `\directlua{ scholatex = require("scholatex") }` (`scholatex.cls:86`), which eagerly registers all eleven feature modules. A second `\AtBeginDocument` block then reads the on-disk file `tex.jobname .. ".tex"` (`scholatex.cls:135-145`), regex-matches `\begin{document}(.-)\end{document}` against the whole file, and hands the captured body to `scholatex.inject`. `sl.inject` calls `sl.transpile` (`scholatex.lua:689-747`) which builds a Lua chunk via `build_lua`, executes it under either the sandbox or trusted globals, and concatenates the result into a single LaTeX string. The hook then emits a literal `\end{document}` (`scholatex.cls:146`) so LaTeX never scans the body itself. See `architecture/compile-pipeline.md` for the full detail.
+
+The body-source resolver has two paths (`scholatex.cls:138-141`). Production: `tex.jobname .. ".tex"` (unchanged for end users). Test: when `regression-test.tex` is `\input`'ed (probed via `token.is_defined("START")`), fall back to `status.filename` with a leading `./` stripped — this is how the l3build harness can drive the class with an `.lvt` filename that does not match `tex.jobname`. See `architecture/test-pipeline.md`.
+
+## Tooling
+
+- `make check J=4` — run the l3build regression suite across four parallel buckets. Single bucket on `J=1`. See `architecture/test-pipeline.md`.
+- `make doc` — `l3build doc`, regenerates `scholatex.pdf` from `scholatex.tex`.
+- `make ctan` — `l3build ctan`, builds `build/distrib/ctan/scholatex-ctan.zip` for upload.
+- `make tag v<X.Y>[-rcN]` — validate and create the annotated git tag locally; the push is intentionally manual so the operator can sanity-check before triggering `release.yml`.
+- `make install` — `l3build install --full --dry-run`. Defaults to dry-run so it never writes into `~/texmf` without an explicit flag flip.
+- `make hooks` — point `core.hooksPath` at `.githooks/` for the Conventional Commits enforcer.
 
 ## Naming taboo
 

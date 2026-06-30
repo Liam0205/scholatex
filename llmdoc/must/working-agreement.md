@@ -49,3 +49,49 @@ Verify against the example corpus under `examples/` before claiming a new patter
 ## Bugs found during init become decisions
 
 Real user-visible bugs surfaced during init or any update workflow are recorded in `memory/decisions/` and `memory/doc-gaps.md`. They are never silently reconciled by editing docs to match code or vice versa. The user decides which side moves. The current example: the `<box>` `sep:` vs `boxsep:` mismatch (see `memory/doc-gaps.md`).
+
+## Push gate on CI-surface commits
+
+Never push a commit that touches the CI surface without first verifying `make check J=4` passes locally. The CI surface is:
+
+- any `.github/workflows/*.yml`
+- `build.lua` (especially the `rewrite_log` filter and `_keep_patterns`)
+- `testfiles/support/regression-test.cfg`
+- any `testfiles/*.tlg` baseline
+- `scholatex.cls`
+- the warning channels in `scholatex.lua` and `scholatex-*.lua` (any `io.stderr` / `texio.write_nl` site)
+
+If pushing red-knowingly to let CI iterate on something only the runner reproduces, state that explicitly to the user **before** the push. The silent failure mode otherwise is "wastes ~8 minutes of CI time per cycle." See `memory/reflections/l3build-ci-bootstrap.md` lesson 11.
+
+## Baseline regeneration
+
+Any change to `scholatex.cls`, `scholatex.lua`, `scholatex-*.lua`, or `testfiles/support/regression-test.cfg` MAY drift the 20 `.tlg` baselines under `testfiles/`. Procedure:
+
+1. Run `make check` (serial; the parallel driver hides per-test diff context behind bucket prefixes).
+2. On failure, inspect `build/test/<name>.luatex.diff` for the rewritten-log delta.
+3. If the drift is intentional, run `l3build save -e luatex <name>` to refresh `testfiles/<name>.tlg`.
+4. Commit the `.tlg` change in the **same** commit as the source change so reviewers see them together.
+
+There is no `make save` wrapper; invoke `l3build save` directly. See `architecture/test-pipeline.md` for the full cycle.
+
+## TL packages sync
+
+Adding a `\RequirePackage{X}` to `scholatex.cls` REQUIRES re-deriving `.github/tl_packages` via the `lualatex --recorder` recipe documented in the file's header comment. Do not push the cls change without the corresponding tl_packages change — CI will fail mid-install with a `File 'X.sty' not found` error. The hash of `.github/tl_packages` is part of the CI cache key, so a stale file silently reuses a cache that lacks the package.
+
+## `%` in `\directlua`
+
+When adding Lua to `scholatex.cls`'s `\AtBeginDocument` hook (or any `\directlua{...}` block), no `%` is allowed in the Lua source. TeX tokenizes `%` as a comment-to-end-of-line **before** the Lua chunk is parsed, silently truncating the chunk. Prefer `s:sub(1,2) == "./"` over `gsub("^%./", "")`; move complex patterns into a `scholatex-*.lua` module. See `memory/reflections/l3build-ci-bootstrap.md` lesson 1.
+
+## `scholatex:` prefix contract for errors and warnings
+
+Every new error or warning that should appear in a regression baseline MUST start with one of:
+
+- `scholatex:` — every `error("scholatex: ...")` site in Lua modules.
+- `scholatex.cls:` — class-level boot errors raised from `\directlua`.
+- `Class scholatex Warning` — `\ClassWarning{scholatex}{...}` emissions.
+
+The `_keep_patterns` whitelist in `build.lua:125-137` post-filters the rewritten log line-by-line; lines not matching any of the ten patterns are dropped before the `.tlg` diff. Tweaking the whitelist to accept a new prefix is allowed but should be a deliberate commit, not a "make my error visible" hack.
+
+## Dual-channel warnings
+
+When adding a new `io.stderr:write(msg, "\n")` warning in `scholatex.lua` or any `scholatex-*.lua` module, also call `if texio and texio.write_nl then texio.write_nl(msg) end` immediately after. The stderr write is for interactive feedback; the `texio.write_nl` lands the same text in the lualatex `.log` so a regression test can pin it. The canonical pattern is at `scholatex.lua:50-58, 200-203, 261-266`. The `if texio` guard makes the module still runnable outside LuaTeX. See `memory/reflections/l3build-ci-bootstrap.md` lesson 3.
