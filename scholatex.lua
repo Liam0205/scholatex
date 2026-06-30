@@ -47,10 +47,14 @@ local function warn_if_shadows(name, lineno)
   if sl._blocks[name] or sl._tags[name] then native = true end
   if native then
     local where = lineno and (" (line " .. lineno .. ")") or ""
-    io.stderr:write("scholatex: warning: 'let " .. name .. "'" .. where
+    local msg = "scholatex: warning: 'let " .. name .. "'" .. where
       .. " shadows a built-in name and will be ignored; "
       .. "the built-in '" .. name .. "' always takes precedence. "
-      .. "Use a different alias name.\n")
+      .. "Use a different alias name."
+    -- Surface on both channels: stderr for interactive feedback, the
+    -- LuaTeX transcript (.log) for regression baselines to pin.
+    io.stderr:write(msg, "\n")
+    if texio and texio.write_nl then texio.write_nl(msg) end
   end
   return native
 end
@@ -193,8 +197,10 @@ forward_text = function(code, s)
       local close = s:find("$", i + 1, true)
       if not close then
         local where = sl._line and (" (line " .. sl._line .. ")") or ""
-        io.stderr:write("scholatex: warning: unterminated '$'" .. where
-          .. "; treating it as a literal dollar sign.\n")
+        local msg = "scholatex: warning: unterminated '$'" .. where
+          .. "; treating it as a literal dollar sign."
+        io.stderr:write(msg, "\n")
+        if texio and texio.write_nl then texio.write_nl(msg) end
         buf[#buf + 1] = "\\$"; i = i + 1
         goto continue
       end
@@ -251,8 +257,10 @@ forward_text = function(code, s)
       local close = s:find(">", i + 1, true)
       if not close then
         local where = sl._line and (" (line " .. sl._line .. ")") or ""
-        io.stderr:write("scholatex: warning: unterminated '<'" .. where
-          .. "; treating it as a literal '<'. To print a literal '<', double it as <<.\n")
+        local msg = "scholatex: warning: unterminated '<'" .. where
+          .. "; treating it as a literal '<'. To print a literal '<', double it as <<."
+        io.stderr:write(msg, "\n")
+        if texio and texio.write_nl then texio.write_nl(msg) end
         buf[#buf + 1] = "\\textless{}"; i = i + 1
         goto continue
       end
