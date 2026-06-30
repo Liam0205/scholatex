@@ -35,6 +35,8 @@
 - `architecture/math-pipeline.md`: the inline math mini-language `mathlite` (`$ ... $`).
 - `architecture/style-and-tags.md`: the three-way tag dispatch and the STYLE classifier.
 - `architecture/function-studies.md`: `<fn>` parsing, `<vartab>`, `<plot>`.
+- `architecture/test-pipeline.md`: l3build regression harness, `testfiles/` layout, `_keep_patterns` whitelist, parallel-check buckets, baseline-regen cycle.
+- `architecture/release-pipeline.md`: tag-push to GitHub prerelease to manual CTAN upload, with the `ctan-release` environment gate and the `l3build upload` stdin workaround.
 
 ### guides
 
@@ -52,13 +54,14 @@
 - `reference/text-style-vocabulary.md`: style words, colours, fonts, alignment, tabs, skips, scripts.
 - `reference/draw-shape-catalogue.md`: the `<draw>` shape catalogue with required/optional/defaulted attributes.
 - `reference/fn-object-schema.md`: the `<fn>` object fields and how `<vartab>` and `<plot>` consume them.
+- `reference/build-and-ci-files.md`: per-file reference for `build.lua`, `Makefile`, `.github/workflows/*`, `.github/tl_packages`, `scripts/*`, and `testfiles/support/regression-test.cfg`.
 
 ## Routing Rules
 
 - Start with `startup.md` on every run — the startup reading order lives there.
-- For a typical situation (extending the language, diagnosing a failure, writing an example, picking a name), consult the decision tree in `must/doc-routing.md`.
-- Touching a subsystem → read the matching `architecture/*` doc before editing.
-- Looking up a stable fact (option, escape, vocabulary entry) → read the matching `reference/*` doc.
+- For a typical situation (extending the language, diagnosing a failure, writing an example, picking a name, working on build / CI / release), consult the decision tree in `must/doc-routing.md`.
+- Touching a subsystem → read the matching `architecture/*` doc before editing. The l3build regression harness has its own architecture doc (`architecture/test-pipeline.md`); the tag-push and CTAN-upload flow is in `architecture/release-pipeline.md`.
+- Looking up a stable fact (option, escape, vocabulary entry, build-file shape) → read the matching `reference/*` doc. Per-file build / CI references live in `reference/build-and-ci-files.md`.
 - Following a workflow (new tag, new shape, new example) → read the matching `guides/*` doc.
 - Revisiting a known-fragile area or repeating a workflow → read the matching `memory/reflections/*` entry first.
 - For a doc-vs-code discrepancy or known gap → consult `memory/doc-gaps.md` before changing either side.

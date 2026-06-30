@@ -103,23 +103,12 @@ Both text font (`scholatex.cls:93-103`) and math font (`scholatex.cls:104-114`) 
 
 ### 1.6 Body extraction (the `\AtBeginDocument` trick)
 
-`scholatex.cls:135-147` contains the load-bearing hook:
+`scholatex.cls:135-161` contains the load-bearing hook. The hook accumulated through four commits and now performs four ordered sub-steps:
 
-```latex
-\AtBeginDocument{%
-  \directlua{
-    local f = io.open(tex.jobname .. ".tex", "r")
-    local whole = f:read("*a"); f:close()
-    local body = whole:match("\string\\begin{document}(.-)\string\\end{document}")
-    if not body then
-      tex.error("scholatex.cls: begin/end document not found")
-    else
-      scholatex.inject(body)
-    end
-  }%
-  \end{document}%
-}
-```
+1. **Source-file resolution with test-mode fallback** (`scholatex.cls:137-141`). Default `src = tex.jobname .. ".tex"`. When `regression-test.tex` is loaded (probed via `token.is_defined("START")`) AND `status.filename` is set, prefer `status.filename` and strip a leading `./` using `src:sub(1,2) == "./"`. LuaTeX exposes the actual main source filename via the `status` table; without this branch the l3build harness — which drives the class with `-jobname=<basename>` against a `.lvt` whose `.tex` does not exist — would fail at `io.open`. See `architecture/test-pipeline.md` for how the harness invokes the class.
+2. **`io.open` nil-safety** (`scholatex.cls:142-147`). If both resolution paths return nil, raise the explicit class-level error `scholatex.cls: cannot read '<src>'. If you used --jobname, ensure it matches the main source filename.` and `return`. Without this guard, a missing file crashes on the next `f:read("*a")` call with an opaque Lua "attempt to index a nil value" error.
+3. **Body extraction with `e_pos` capture and truncation warning** (`scholatex.cls:149-156`). The regex `whole:match("\\begin{document}(.-)()\\end{document}")` uses the empty `()` capture between `(.-)` and `\end{document}` to record the offset *right after the body ends* (Lua's trick to get a position rather than a string). The hook then searches `whole` from `e_pos + 14` (skipping past the 14-char literal `\end{document}`); if another occurrence is found, the hook emits `\ClassWarning{scholatex}{source contains more than one \end{document}; body truncated at first occurrence}`. The truncation itself cannot be recovered without a different regex; the warning is the partial fix for the B3 doc-gap. See `memory/doc-gaps.md` row B3.
+4. **`scholatex.inject(body)` then literal `\end{document}`** (`scholatex.cls:157-160`). `inject` runs the transpiler; the literal `\end{document}` after the `\directlua{}` block stops LaTeX from scanning the original source body a second time.
 
 Two design choices to understand:
 
@@ -128,8 +117,10 @@ Two design choices to understand:
 
 **Pitfalls:**
 
-- The regex `\begin{document}(.-)\end{document}` is **non-greedy**. If the body literally contains the seven characters `\end{document}` (e.g. a tutorial about LaTeX), the regex truncates there and the tail is silently dropped. No warning. See § "Failure modes".
-- The Lua reads `tex.jobname .. ".tex"`. If the user compiles with `lualatex --jobname=other main.tex`, `tex.jobname` is `other`; the class tries to read `other.tex` and either fails (file missing) or extracts the wrong body (file exists but is different).
+- The regex `\begin{document}(.-)\end{document}` is **non-greedy**. If the body literally contains the seven characters `\end{document}` (e.g. a tutorial about LaTeX), the regex truncates there and the tail is silently dropped — the user now gets a `\ClassWarning` (step 3) but the trailing material is still lost. See § "Failure modes".
+- The Lua reads `tex.jobname .. ".tex"`. If the user compiles with `lualatex --jobname=other main.tex`, `tex.jobname` is `other`; the class tries to read `other.tex` and either errors with the explicit "cannot read" message (step 2) or extracts the wrong body (file exists but is different).
+
+> The regression-test integration and the test-mode `status.filename` fallback (step 1) are documented in full in `architecture/test-pipeline.md`. The hook is the single integration point between the closed-language class and the l3build harness.
 
 ## 2. `sl.transpile(src)` flow
 
@@ -352,12 +343,38 @@ So the actual budget is **≤ 200 hook firings × 10⁵ instructions = ≤ 2·10
 
 `run_limited` also installs `debug.setmetatable("", {__index = safestr})` so `:method()` lookups on strings hit the sandboxed `string` clone, then restores the previous metatable on exit. Trusted runs are unaffected.
 
+## Warning channels
+
+Three Lua warning sites in `scholatex.lua` write to **both** `io.stderr` and the LuaTeX transcript via `texio.write_nl`:
+
+| Site | Function | Trigger | File:line |
+|---|---|---|---|
+| 1 | `warn_if_shadows(name, lineno)` | `let NAME` where NAME shadows a tag, block, or style word | `scholatex.lua:50-58` |
+| 2 | `forward_text` `$` branch | unterminated `$` in prose | `scholatex.lua:200-203` |
+| 3 | `forward_text` `<` branch | unterminated `<` (no closing `>` on the rest of the buffer) | `scholatex.lua:261-266` |
+
+The canonical pattern is:
+
+```lua
+io.stderr:write(msg, "\n")
+if texio and texio.write_nl then texio.write_nl(msg) end
+```
+
+Two reasons for the dual write:
+
+- **`io.stderr`** is the interactive feedback channel — the message appears on the operator's terminal during an `lualatex myfile.tex` run.
+- **`texio.write_nl`** writes the same text into the LuaTeX `.log` file. l3build's regression harness diffs against that log, so a warning that fires only on stderr is invisible to baselines. After the dual write landed, `regress-B5.tlg` pins the shadow-warning text and the regression harness catches drift on that channel.
+
+The `if texio and texio.write_nl` guard makes the module still runnable outside LuaTeX (e.g. plain `lua scholatex.lua` for unit testing) without crashing on the missing `texio` namespace.
+
+See `must/working-agreement.md` § "Dual-channel warnings" for the rule when adding new warnings. The baseline-pinning side is covered in `architecture/test-pipeline.md`.
+
 ## 9. Failure modes and their messages
 
 | Trigger | Message | Mitigation |
 |---|---|---|
-| `tex.jobname` is not the on-disk source name | `scholatex.cls: begin/end document not found` (or a Lua I/O error if the file is missing) | Avoid `--jobname=...`. With latexmk, ensure the jobname matches the source root |
-| Body literally contains `\end{document}` (e.g. in prose about LaTeX) | No error. Body silently truncates at the first occurrence; trailing content vanishes | No documented escape. Avoid typing the literal seven characters in scholatex prose |
+| `tex.jobname` is not the on-disk source name | `scholatex.cls: cannot read '<src>'. If you used --jobname, ensure it matches the main source filename.` (`scholatex.cls:144-145`) | Drop `--jobname=...`. With latexmk, ensure the jobname matches the source root. The test-mode fallback to `status.filename` only fires when `regression-test.tex` is loaded |
+| Body literally contains `\end{document}` (e.g. in prose about LaTeX) | `Class scholatex Warning: source contains more than one \end{document}; body truncated at first occurrence` (`scholatex.cls:154-155`). Body still silently truncates at the first occurrence; trailing content vanishes | No documented escape. Avoid typing the literal seven characters in scholatex prose. The warning is the partial fix; truncation cannot be recovered without a different regex |
 | Unknown tag attribute | `scholatex: unknown tag attribute: 'X'` (`scholatex-style.lua:201`) | Usually a typo or a block name typed inline (e.g. `<box>{...}` on one line — see § "Process lines" step 4). Fix: move `{` to end-of-line for the block path |
 | Lowercase colour | `scholatex: 'red' is not a colour; colours are written in CamelCase now -- use 'Red'` (`scholatex-style.lua:198-200`) | Rename per CamelCase |
 | Sandbox instruction limit | `scholatex: untrusted document exceeded the instruction limit (possible runaway loop); aborted` (`scholatex.lua:676-679`) | Reduce loop count, or compile without `untrusted=true` |

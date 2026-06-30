@@ -51,3 +51,16 @@ Use this decision tree to pick the next document or source file. Each row gives 
 | Running an `/llmdoc:*` workflow that previously surprised | `memory/reflections/*.md` for the matching workflow |
 | Recording a contract bug discovered mid-task | `memory/doc-gaps.md` to extend the list; if it warrants a structural decision, also add a new `memory/decisions/00N-*.md` |
 | Picking a name for a new tag or block | `must/project-basics.md` § "Naming taboo" and grep `register_tag` / `register_block` |
+
+## Build, test, CI, release
+
+| Situation | Read next |
+|---|---|
+| User reports CI failed at `\RequirePackage{X}` (`File 'X.sty' not found`) | `reference/build-and-ci-files.md` § `.github/tl_packages` — re-derivation recipe in the file header comment |
+| User reports `make check J=4` fails after a `scholatex.cls` / `scholatex*.lua` / `regression-test.cfg` source change | `architecture/test-pipeline.md` § baseline regen cycle (`l3build save -e luatex <name>`) |
+| User reports `make doc` failed or `scholatex.pdf` won't compile | `reference/build-and-ci-files.md` § `workflows/doc.yml` for the workflow contract, and § `tl_packages` "Regeneration recipe" if a new `\usepackage` was added to `scholatex.tex` |
+| User adds a `\usepackage{X}` to `scholatex.tex` (the user manual) | `must/working-agreement.md` § "TL packages sync" — same recipe applies to manual deps as to cls deps; both feed the same `tl_packages` hash |
+| User wants to cut a release `v<X.Y>` | `architecture/release-pipeline.md` § operator workflow — `make tag`, push, await prerelease, dispatch CTAN upload |
+| User wants to upload the cut release to CTAN | `architecture/release-pipeline.md` § CTAN upload + the `ctan-release` GitHub-environment provisioning note |
+| User adds a new error or warning and wants it pinned in a regression baseline | `architecture/test-pipeline.md` § `_keep_patterns` whitelist and the dual-channel warning rule (must prefix with `scholatex:` / `scholatex.cls:` / `Class scholatex Warning`) |
+| User asks why CI install takes so long, or how to shorten it | `reference/build-and-ci-files.md` § `.github/tl_packages` design rationale + the ISO-week TL-bypass cache key |

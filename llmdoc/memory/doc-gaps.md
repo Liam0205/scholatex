@@ -1,6 +1,6 @@
 # Doc Gaps
 
-A rolling list of documentation gaps, doc-vs-code drifts, and undocumented surfaces discovered during the wave-1 init investigations (scratch reports 02-10 under `.llmdoc-tmp/investigations/`). Group by category. Every row cites the documentation side and the code side with `file:line`.
+A rolling list of documentation gaps, doc-vs-code drifts, and undocumented surfaces discovered during the wave-1 init investigations and later development. Group by category. Every row cites the documentation side and the code side with `file:line`.
 
 ## Real user-visible bugs
 
@@ -8,9 +8,9 @@ Documentation and code disagree on the same name.
 
 | Issue | Doc claim | Code reality | Citations |
 |---|---|---|---|
-| `<box>` inner padding option | README says **`sep:N`** ("override locally with `sep:N`"); README and the manual both also say **`boxsep:N`** elsewhere | Code reads `opts.sep` only. `opts.boxsep` is parsed but ignored, silently falling back to the class `padding` default | `README.md:129` (`sep:`) vs `README.md:515` and `scholatex.tex:449` (`boxsep:`); code at `scholatex-box.lua:41` |
-| Auto-escape list missing `^` | README:597 lists "`_ & % ~`" (4 chars) | Code escapes 5 chars (`_ & % ^ ~`); the standalone manual is correct | `README.md:597` vs `scholatex.lua:299-303` and `scholatex.tex:361` |
-| Examples count says "six" | README copy says "six self-contained" but the table lists seven; the standalone manual says "seven" | `examples/` actually contains **12** `.tex` files | `README.md:647` (six/seven mismatch) and `scholatex.tex:1123` (seven) vs `ls examples/*.tex` |
+| `<box>` inner padding option | README says **`sep:N`** ("override locally with `sep:N`"); README and the manual both also say **`boxsep:N`** elsewhere | Code reads `opts.sep` only. `opts.boxsep` is parsed but ignored, silently falling back to the class `padding` default. **PARTIAL FIX (fork only, commit `43dda10`)**: this fork now also honours `opts.boxsep` as an alias; upstream README/code still drift | `README.md:129` (`sep:`) vs `README.md:515` and `scholatex.tex:449` (`boxsep:`); code at `scholatex-box.lua:41`. Pinned MWE: `testfiles/regress-A1.lvt` |
+| Auto-escape list missing `^` | README:597 lists "`_ & % ~`" (4 chars) | Code escapes 5 chars (`_ & % ^ ~`); the standalone manual is correct. **PARTIAL FIX (fork README only)**: doc-only fix landed in the fork README; upstream README still missing | `README.md:597` vs `scholatex.lua:299-303` and `scholatex.tex:361`. Pinned MWE: `testfiles/regress-A2.lvt` |
+| Examples count says "six" | README copy says "six self-contained" but the table lists seven; the standalone manual says "seven" | `examples/` actually contains **12** `.tex` files. **FIXED (fork only, commit `3306d09`)**: count harmonised across README, `scholatex.tex`, and the on-disk inventory | `README.md:647` (six/seven mismatch) and `scholatex.tex:1123` (seven) vs `ls examples/*.tex` |
 
 ## Undocumented surfaces
 
@@ -74,7 +74,7 @@ The entire inline geometry vocabulary is exercised only in `examples/geometry.te
 | Behaviour | Code | Doc status |
 |---|---|---|
 | Line-start `\%` strips the `\` so a literal `%` survives | `scholatex.lua:508-515` | Only `scholatex.tex:375-376` mentions the comment half; README is silent |
-| `for VAR in [a, b, c] { ... }` makes items always strings (`%q`-quoted) | `scholatex.lua:78-80` | Footgun; no doc mentions it. The README shows the bracketed form with file names (always strings) but never warns about numeric items |
+| `for VAR in [a, b, c] { ... }` makes items always strings (`%q`-quoted) | `scholatex.lua:78-80` | Footgun; no doc mentions it. The README shows the bracketed form with file names (always strings) but never warns about numeric items. **B2 — FIXED (fork only, commit `9c9092e`)**: numeric literals now coerce. Pinned MWE: `testfiles/regress-B2.lvt` |
 | No `elseif` syntax | `scholatex.lua:67` (only `} else {`) | Not mentioned in docs |
 | `BLOCKALIAS` dual-write for `let NAME = <... BLOCK ...>` (non-parametric) | `scholatex.lua:552-557` writes both `BLOCKALIAS[NAME]` and `ALIAS[NAME]` | Undocumented quirk |
 
@@ -89,18 +89,28 @@ The entire inline geometry vocabulary is exercised only in `examples/geometry.te
 
 | Item | Notes |
 |---|---|
-| Root-level `text-style.tex` and `math-language.tex` are byte-identical duplicates of files under `examples/` | `diff text-style.tex examples/text-style.tex` and `diff math-language.tex examples/math-language.tex` both return 0. Neither root file is referenced from README, `scholatex.tex`, CHANGELOG, or any module. CHANGELOG 2.1 reorganised examples (`CHANGELOG.md:168-169`) but did not delete the root copies |
-| Example-count discrepancy | README:647 says "six" but its table lists 7; `scholatex.tex:1123` says 7; the actual count is **12** under `examples/`. The four missing from both docs are `geometry.tex`, `math-algebra.tex`, `math-analysis.tex`, `math-language.tex` |
-| Bilingual error messages | Several validators still raise French strings. Specifically: `scholatex-math.lua:369-370` (`angle s'utilise avec des points`), `scholatex-figure.lua:41` (`côté égal trop court`), `scholatex-figure.lua:54` (`côtés incompatibles`), `scholatex-figure.lua:60` (`la somme des deux angles atteint ou dépasse 180°`). All other v2.3 errors are English; the project's `lang=fr` default does not justify this since the examples all use `lang=en` |
+| Root-level `text-style.tex` and `math-language.tex` are byte-identical duplicates of files under `examples/` | `diff text-style.tex examples/text-style.tex` and `diff math-language.tex examples/math-language.tex` both return 0. Neither root file is referenced from README, `scholatex.tex`, CHANGELOG, or any module. CHANGELOG 2.1 reorganised examples (`CHANGELOG.md:168-169`) but did not delete the root copies. **FIXED (fork only, commit `b5bfa27`)**: root duplicates deleted |
+| Example-count discrepancy | README:647 says "six" but its table lists 7; `scholatex.tex:1123` says 7; the actual count is **12** under `examples/`. The four missing from both docs are `geometry.tex`, `math-algebra.tex`, `math-analysis.tex`, `math-language.tex`. **FIXED (fork only, commit `3306d09`)**: see also the corresponding row in § "Real user-visible bugs" |
+| Bilingual error messages | Several validators still raise French strings. Specifically: `scholatex-math.lua:369-370` (`angle s'utilise avec des points`), `scholatex-figure.lua:41` (`côté égal trop court`), `scholatex-figure.lua:54` (`côtés incompatibles`), `scholatex-figure.lua:60` (`la somme des deux angles atteint ou dépasse 180°`). All other v2.3 errors are English; the project's `lang=fr` default does not justify this since the examples all use `lang=en`. **FIXED (fork only)**: E1 `dbc31f6`, E2 `d668a36` (plus err-binding fix `55004d9`), E3 `d187693`, E4 `b428a09`. All four .lvt baselines (`testfiles/regress-E[1-4].lvt`/.tlg) now pin English |
 
 ## Compile-time fragility not documented
 
 | Trigger | Failure | Citation |
 |---|---|---|
-| `tex.jobname` does not match the on-disk source filename (custom `--jobname`, latexmk shadow copies, build wrappers) | Class tries to read `tex.jobname .. ".tex"` from disk and either gets `nil` from `io.open` or reads a different file | `scholatex.cls:135-145` |
-| Body literally contains the seven characters `\end{document}` | The non-greedy regex `\begin{document}(.-)\end{document}` truncates at the first occurrence. Body after that is silently dropped. No warning, no error | `scholatex.cls:139` |
+| `tex.jobname` does not match the on-disk source filename (custom `--jobname`, latexmk shadow copies, build wrappers) | Class tries to read `tex.jobname .. ".tex"` from disk and either gets `nil` from `io.open` or reads a different file. **B4 — FIXED (fork only)**: `de3079a` adds nil-safe `io.open` with the explicit error `scholatex.cls: cannot read '<src>'. If you used --jobname, ensure it matches the main source filename.`; followup `e5475b5` adds the test-mode `status.filename` fallback so the l3build harness works. No `.lvt` regression coverage (per-test `checkopts` is not wired in `build.lua`) | `scholatex.cls:135-147` |
+| Body literally contains the seven characters `\end{document}` | The non-greedy regex `\begin{document}(.-)\end{document}` truncates at the first occurrence. Body after that is silently dropped. **B3 — PARTIAL FIX (fork only, commit `0541fb3`)**: `\ClassWarning{scholatex}{source contains more than one \end{document}; body truncated at first occurrence}` is now emitted. Truncation still happens. No `.lvt` regression coverage — a `.lvt` containing the literal sequence would self-terminate at the LaTeX parser level | `scholatex.cls:149-156` |
 | `<<` / `>>` only collapse when *consecutive*. `< x <` is interpreted as an unterminated tag head | The warning at `scholatex.lua:244-247` catches the unterminated case ("To print a literal `<`, double it as `<<`.") but not the case where `>` appears later in the text | `scholatex.lua:236-264` |
-| The block-opener regex requires `{` to be the line's last non-whitespace character. Putting body on the same line as the opener silently flips to the inline-tag path, which errors as `unknown tag attribute: 'box'` | `scholatex.lua:402`; user-visible the rule is the single most common gotcha | Most mistakes manifest at `scholatex-style.lua:201` |
+| The block-opener regex requires `{` to be the line's last non-whitespace character. Putting body on the same line as the opener silently flips to the inline-tag path, which errors as `unknown tag attribute: 'box'` | `scholatex.lua:402`; user-visible the rule is the single most common gotcha. **B1 — FIXED (fork only, commit `6250751`)**: explicit error `scholatex: line N: block opener for 'box' requires '{' as the last non-whitespace character on the line` now fires instead of the cryptic "unknown tag attribute". Pinned MWE: `testfiles/regress-B1.lvt`/.tlg | Most mistakes manifest at `scholatex-style.lua:201` |
+| `let NAME = <STYLE>` where NAME shadows a built-in tag, block, or style word | The warning at `scholatex.lua:50-58` fires but the alias was previously still installed, silently overwriting the built-in. **B5 — FIXED (fork only) AND regression-covered**: `ee4c5a9` makes `warn_if_shadows` return early so the alias is not written; `0a578a5` adds the `texio.write_nl` dual-channel emit so the warning reaches the `.log`; `e1e0fe0` pins the warning text in `testfiles/regress-B5.tlg` | `scholatex.lua:50-58` |
+
+## Toolchain limitations (added during l3build / CI bootstrap, 2026-06-30)
+
+- **B3 and B4 lack `.lvt` regression coverage.** B3: a `.lvt` containing a literal `\end{document}` would be terminated by it at the LaTeX-parser level before reaching scholatex's hook. B4: per-test `--jobname=foo` is not wireable via the current `build.lua` — l3build accepts `checkopts` as a global string but not per-test. Both bugs are user-visible-fixed (warning emitted / explicit error) but cannot be pinned in baselines without harness changes.
+- **`containers.tex` smoke test deferred.** The 10 image-free `examples/*.tex` files have smoke `.lvt` wrappers under `testfiles/`; `containers.tex` is excluded because it pulls images from `examples/IMG/`. `testfiles/support/` would need image staging or symlink resolution. Not attempted.
+- **`ctan-release` GitHub environment not provisioned.** `.github/workflows/release-ctan-upload.yml:52` references the `ctan-release` protected environment, but the GitHub UI does not yet have it configured. Live CTAN uploads will block at the environment gate until an operator creates the environment under Settings → Environments and adds required reviewers + secrets. The dry-run path works today (the conditional `${{ inputs.dry_run && '' || 'ctan-release' }}` bypasses the gate).
+- **No `make save` target.** The `.lvt` → `.tlg` refresh is operator-typed `l3build save -e luatex <name>` directly; no Makefile wrapper. Adding `make save NAME=<test>` would be a small improvement.
+- **`_keep_patterns` whitelist depends on l3build keeping `rewrite_log` as a global.** `build.lua:122` captures `_orig_rewrite_log = rewrite_log` at file-load time. If a future l3build refactors `rewrite_log` into a method on a config object, the override silently no-ops and every `.tlg` grows noise at once. There is no automated upgrade check; this should be revisited on every l3build major version bump.
+- **Stale count comment in `.github/tl_packages:31`.** The header comment said "22 entries" for the cls `\RequirePackage` block; the actual block had 27 lines. **FIXED (fork only, commit `bd98852`)**: the regen pass that added `booktabs / chngcntr / fancyvrb` also corrected the block-header comment to "27 entries" and added a new 5th "Manual deps" block for the three new entries. Not load-bearing (the whitelist filter doesn't see this file).
 
 ## Cross-references
 

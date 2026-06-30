@@ -135,6 +135,10 @@
 \AtBeginDocument{%
 	\directlua{
 	local src = tex.jobname .. ".tex"
+	if token.is_defined("START") and status and status.filename then
+	src = status.filename
+	if src:sub(1,2) == "./" then src = src:sub(3) end
+	end
 	local f = io.open(src, "r")
 	if not f then
 	tex.error("scholatex.cls: cannot read '" .. src .. "'. "
