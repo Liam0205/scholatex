@@ -76,7 +76,16 @@ local function lua_control(line)
     local items = U.split_commas(llist)
     local quoted = {}
     for _, it in ipairs(items) do
-      quoted[#quoted + 1] = string.format("%q", it)
+      -- Auto-coerce numeric literals so `for n in [1, 2, 3]` produces
+      -- numbers, not the strings "1" / "2" / "3" (the asymmetry with
+      -- the range form `for n in 1..3` was a long-standing footgun).
+      local trimmed = U.trim(it)
+      local n = tonumber(trimmed)
+      if n then
+        quoted[#quoted + 1] = trimmed
+      else
+        quoted[#quoted + 1] = string.format("%q", it)
+      end
     end
     return ("for _, %s in ipairs({%s}) do"):format(lv, table.concat(quoted, ", "))
   end
