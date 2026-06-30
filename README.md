@@ -644,17 +644,21 @@ Setting `untrusted=true` in `\documentclass[...]{scholatex}` runs that Lua in a 
 
 ## Examples
 
-The `examples/` folder contains six self-contained, fully commented documents that together exercise every feature:
+The `examples/` folder contains eleven self-contained, fully commented documents that together exercise every feature:
 
 | File | Covers |
 |------|--------|
 | `text-style.tex` | the case rule, styles, colours, fonts, sizes, alignment, tabs, skips, scripts; **factoring styles into aliases**; a table of contents from the heading keywords |
 | `containers.tex` | tables, boxes and the named-area grid, each built up from its simplest form to a full worksheet header |
 | `basics.tex` | the inline mini-language, number sets, quantifiers and connectives, negation with `!`, set relations, the integer part, the overline, and arithmetic helpers |
+| `math-language.tex` | a tour of the math mini-language built progressively from quantifiers to integrals |
+| `math-analysis.tex` | analysis-flavoured math snippets: limits, derivatives, integrals, transforms |
+| `math-algebra.tex` | algebra-flavoured math snippets: matrices, linear-algebra vocabulary |
 | `analysis.tex` | operators with an index, limits (including the `arrow` form), trigonometry, derivatives, the vector operators, the integral family, transforms |
 | `algebra.tex` | the matrix / determinant / augmented-matrix / system blocks, and the linear-algebra vocabulary |
 | `probability.tex` | counting, probability and expectation, variance, distributions, density |
 | `functions.tex` | full function studies — `<fn>`, `<vartab>` and `<plot>` over polynomial, rational-with-horizontal-asymptote and rational-with-pole examples |
+| `geometry.tex` | the `<draw>` block — triangles, quadrilaterals, regular polygons, circles, composite figures, and the inline-math geometry vocabulary |
 
 Compile any of them with `lualatex <file>.tex` from the `examples/` folder.
 
