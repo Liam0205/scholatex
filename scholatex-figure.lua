@@ -38,7 +38,7 @@ local Tri = {}
 function Tri.equilateral(P,s) return {{P[1],0,0},{P[2],s,0},{P[3],s*cos(60),s*sin(60)}}, {sides="all"} end
 function Tri.isosceles(P,e,b)
   local d=e*e-(b/2)*(b/2)
-  if d<=0 then return nil,"côté égal trop court pour cette base" end
+  if d<=0 then return nil,"equal side too short for the given base" end
   local h=math.sqrt(d)
   return {{P[1],b/2,h},{P[2],0,0},{P[3],b,0}}, {sides={{1,2},{1,3}}}
 end
