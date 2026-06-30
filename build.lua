@@ -45,6 +45,11 @@ checkformat  = "latex"
 -- the .lvt's basename. l3build already does that by default.
 checkruns    = 1
 
+-- Record lualatex's exit level in the baseline. Smoke tests (passing)
+-- pin Compilation 1 = status 0; regression tests for deliberate failures
+-- pin status != 0.
+recordstatus = true
+
 -- CTAN upload metadata ----------------------------------------------------
 --
 -- Consumed by `l3build ctan` (builds the zip) and `l3build upload` (POSTs
