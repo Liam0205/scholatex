@@ -51,7 +51,7 @@ function Tri.right(P,p,q,at)
 end
 function Tri.sss(P,a,b,c)
   local cosA=(a*a+c*c-b*b)/(2*a*c)
-  if cosA<-1 or cosA>1 then return nil,"côtés incompatibles (inégalité triangulaire non respectée)" end
+  if cosA<-1 or cosA>1 then return nil,"sides violate the triangle inequality" end
   local A=math.deg(math.acos(cosA))
   return {{P[1],0,0},{P[2],a,0},{P[3],c*cos(A),c*sin(A)}}, {}
 end
