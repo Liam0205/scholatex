@@ -5,10 +5,19 @@
 # `package-file:` option, and hashed by hashFiles() so this list is part
 # of the TL cache key.
 #
-# Edit when scholatex.cls adds / drops a \RequirePackage, or when a TeX
-# Live release moves a transitive dependency.
+# The list is derived from `lualatex --recorder` traces over every file
+# in examples/*.tex. To regenerate after a cls dependency change:
+#
+#   cd /tmp && mkdir t && cd t
+#   for f in <path-to-repo>/examples/*.tex; do
+#     cp "$f" main.tex
+#     TEXINPUTS=<path-to-repo>: LUAINPUTS=<path-to-repo>: \
+#       lualatex --recorder -interaction=nonstopmode main.tex >/dev/null 2>&1
+#     grep -oE 'INPUT [^ ]+\.(sty|cls|def|cfg|fd|tex|lua|cmap|clo)$' main.fls
+#   done | awk '{print $2}' | grep -oE '/tex/[^/]+/[^/]+/' \
+#        | sed -E 's|/tex/[^/]+/([^/]+)/|\1|' | sort -u
 
-# l3build harness
+# l3build harness + scheme-basic
 scheme-basic
 l3build
 latex-bin
@@ -17,8 +26,9 @@ lualatex-math
 l3kernel
 l3packages
 l3experimental
+l3backend
 
-# scholatex.cls \RequirePackage list
+# scholatex.cls \RequirePackage list (22 entries)
 kvoptions
 amsmath
 amsfonts
@@ -46,6 +56,27 @@ fontspec
 unicode-math
 geometry
 extsizes
+
+# Transitive deps surfaced by lualatex --recorder traces over the example
+# corpus. Without these, scheme-basic-only installs fail at \RequirePackage
+# time for tcolorbox / fontspec / unicode-math / tabularray and friends.
+collectbox            # adjustbox dep
+environ               # tcolorbox dep
+etoolbox              # tcolorbox dep
+pdfcol                # tcolorbox dep (TL 2026+ poster library)
+ninecolors            # tabularray dep
+varwidth              # tcolorbox dep
+ifoddpage             # adjustbox dep
+trimspaces            # tikz dep
+xkeyval               # adjustbox / pst-tools dep
+epstopdf-pkg          # graphicx graphics rule
+pdftexcmds            # oberdiek bundle
+infwarerr             # oberdiek bundle
+kvsetkeys             # oberdiek bundle
+lualibs               # luaotfload dep
+luaotfload            # fontspec dep
+lua-uni-algos         # luaotfload dep
+iftex                 # general convenience
 
 # Fonts pulled by fontspec / unicode-math
 lm
