@@ -109,24 +109,45 @@ jobs:
           CTAN_EMAIL:    ${{ inputs.email }}
           CTAN_NOTE:     ${{ inputs.note }}
         run: |
-          # l3build always prompts "Do you want to upload to CTAN? [y/n]"
-          # after a successful validate -- EVEN WITH --dry-run. This is
-          # a l3build (TL 2026) design bug: l3build-upload.lua's
-          # `if options["dry-run"] then ctanupload = false end` sets
-          # ctanupload to false, then l3build-variables.lua runs
-          # `ctanupload = ctanupload or "ask"` which overwrites the
-          # explicit false with the truthy "ask" sentinel (Lua's `or`
-          # doesn't distinguish false from nil). So --dry-run still
-          # waits on stdin; if stdin is EOF, `io.read()` returns nil
-          # and the script crashes at `string.lower(nil, 1, 1)`.
+          # l3build upload has two stdin pitfalls we need to defuse, in
+          # this order:
           #
-          # Workaround (mirroring ctex-kit): pipe a one-char answer +
-          # newline via `printf` to satisfy the unwanted prompt. n in
-          # dry-run keeps the upload local; y in live mode confirms.
+          # 1. uploadconfig.announcement is mandatory. If not supplied,
+          #    l3build calls input_multi_line_field("announcement")
+          #    which reads stdin until 3 blank returns or EOF, eating
+          #    every byte we try to feed for the y/n prompt later.
+          #    Pass `--file <announcement.md>` to short-circuit the
+          #    interactive read; l3build then uses the file contents
+          #    as the announcement and skips the prompt entirely.
+          #    See l3build-upload.lua:98-103, 305-360.
+          #
+          # 2. After validation, l3build ALWAYS prompts
+          #    "Do you want to upload to CTAN? [y/n]" -- even with
+          #    --dry-run. Root cause is a l3build (TL 2026) design bug:
+          #    `if options["dry-run"] then ctanupload = false end` sets
+          #    ctanupload to false, then l3build-variables.lua runs
+          #    `ctanupload = ctanupload or "ask"` which overwrites the
+          #    explicit false with the truthy "ask" sentinel (Lua's
+          #    `or` doesn't distinguish false from nil). So --dry-run
+          #    still waits on stdin; if stdin is EOF, `io.read()`
+          #    returns nil and the script crashes at
+          #    `string.lower(nil, 1, 1)`. Mirror ctex-kit's workaround
+          #    (release-ctan-upload.yml:455): pipe a single answer +
+          #    newline via `printf` to satisfy the unwanted prompt.
+          #    n in dry-run keeps the upload local; y in live mode
+          #    confirms.
+          #
           # --email is also passed explicitly on the CLI as a belt-
-          # and-braces backstop in case build.lua doesn't read the
-          # env var.
-          ARGS=(--email "${{ inputs.email }}")
+          # and-braces backstop in case build.lua doesn't read the env
+          # var.
+          ANN=/tmp/scholatex-announcement.md
+          {
+            echo "scholatex ${{ inputs.tag }} dry-run / pre-release"
+            echo ""
+            echo "Tag: ${{ inputs.tag }}"
+            echo "Dispatched by: ${{ github.actor }}"
+          } > "$ANN"
+          ARGS=(--file "$ANN" --email "${{ inputs.email }}")
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             ARGS+=(--dry-run)
             ANSWER=n
