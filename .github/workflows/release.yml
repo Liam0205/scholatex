@@ -39,13 +39,36 @@ jobs:
           sha8=$(git rev-parse --short=8 HEAD)
           echo "sha8=$sha8" >> "$GITHUB_OUTPUT"
 
-      - name: Set up TeX Live
+      # Same TL bypass-cache mechanism as ci.yml -- a release tag pushed
+      # in the same ISO week as the most recent CI run gets a cache hit
+      # and skips the ~3-5 min setup-texlive install.
+      - name: Compute cache week
+        id: cache-week
+        run: echo "iso=$(date -u +'%G-W%V')" >> "$GITHUB_OUTPUT"
+
+      - name: TL bypass cache
+        id: tl-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/setup-texlive-action/${{ env.TL_VERSION }}
+          key: tl-bypass-${{ runner.os }}-${{ env.TL_VERSION }}-${{ steps.cache-week.outputs.iso }}-${{ hashFiles('.github/tl_packages') }}
+
+      - name: Export PATH (cache hit)
+        if: steps.tl-cache.outputs.cache-hit == 'true'
+        continue-on-error: true
+        run: |
+          TL_BIN="${{ runner.temp }}/setup-texlive-action/${{ env.TL_VERSION }}/bin/x86_64-linux"
+          echo "$TL_BIN" >> "$GITHUB_PATH"
+          "$TL_BIN/tlmgr" version
+
+      - name: Set up TeX Live (cache miss)
+        if: steps.tl-cache.outputs.cache-hit != 'true'
         uses: TeX-Live/setup-texlive-action@v4
         with:
           version: ${{ env.TL_VERSION }}
-          # Mirror ci.yml: shared .github/tl_packages.
           package-file: .github/tl_packages
-          cache: true
+          cache: false
+          update-all-packages: true
 
       - name: Build CTAN zip
         run: make ctan
