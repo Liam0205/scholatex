@@ -11,3 +11,10 @@
 CLAUDE.md
 AGENTS.md
 
+# l3build outputs
+build/
+scholatex.pdf
+
+# bash check-parallel work area
+tmp/
+
