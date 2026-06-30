@@ -134,7 +134,13 @@
 \setlength{\lineskip}{3pt}
 \AtBeginDocument{%
 	\directlua{
-	local f = io.open(tex.jobname .. ".tex", "r")
+	local src = tex.jobname .. ".tex"
+	local f = io.open(src, "r")
+	if not f then
+	tex.error("scholatex.cls: cannot read '" .. src .. "'. "
+	    .. "If you used --jobname, ensure it matches the main source filename.")
+	return
+	end
 	local whole = f:read("*a"); f:close()
 	local body = whole:match("\string\\begin{document}(.-)\string\\end{document}")
 	if not body then
