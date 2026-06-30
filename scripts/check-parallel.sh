@@ -99,6 +99,7 @@ for ((n = 1; n <= BUCKETS; n++)); do
     label="b$n"
     labels+=("$label:$first..$last")
     (
+        set +e
         cd "$workdir"
         l3build check --first "$first" --last "$last" -q 2>&1 \
           | awk -v p="[$label] " '{print p $0; fflush()}'
