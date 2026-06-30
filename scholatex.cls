@@ -134,12 +134,22 @@
 \setlength{\lineskip}{3pt}
 \AtBeginDocument{%
 	\directlua{
-	local f = io.open(tex.jobname .. ".tex", "r")
+	local src = tex.jobname .. ".tex"
+	local f = io.open(src, "r")
+	if not f then
+	tex.error("scholatex.cls: cannot read '" .. src .. "'. "
+	    .. "If you used --jobname, ensure it matches the main source filename.")
+	return
+	end
 	local whole = f:read("*a"); f:close()
-	local body = whole:match("\string\\begin{document}(.-)\string\\end{document}")
+	local body, e_pos = whole:match("\string\\begin{document}(.-)()\string\\end{document}")
 	if not body then
 	tex.error("scholatex.cls: begin/end document not found")
 	else
+	if e_pos and whole:find("\string\\end{document}", e_pos + 14, true) then
+	tex.print("\string\\ClassWarning{scholatex}{source contains more than one "
+	    .. "\string\\string\\end{document}; body truncated at first occurrence}")
+	end
 	scholatex.inject(body)
 	end
 }%
