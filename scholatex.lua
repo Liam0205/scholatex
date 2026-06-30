@@ -400,6 +400,26 @@ process_lines = function(code, body_lines)
         end
       end
       local bname, bwords = line:match("^%s*<(%a[%w_]*)%s*(.-)>%s*{%s*$")
+      -- A line that opens with `<NAME ...>{...}` where NAME is a known
+      -- block (not a tag) is almost certainly an attempted block opener
+      -- with the body folded onto the same line. The block dispatcher
+      -- requires `{` to be the last non-whitespace character on the
+      -- opener line (regex above). Without this catch, dispatch
+      -- silently falls through to the inline-tag path and a user sees
+      -- the unrelated `unknown tag attribute: 'NAME'` from STYLE.
+      --
+      -- We only flag NAMES that are registered as blocks AND are NOT
+      -- registered as tags, so genuine inline-tag forms (e.g. <b>{...})
+      -- are unaffected.
+      if not bname then
+        local fname = line:match("^%s*<(%a[%w_]*)[^>]*>%s*{.*")
+        if fname and sl._blocks[fname] and not sl._tags[fname] then
+          error("block opener for '" .. fname
+              .. "' requires `{` to be the last non-whitespace character"
+              .. " on its line. Move the body to the next line, or use"
+              .. " an inline-tag form if available.")
+        end
+      end
       if bname and BLOCKALIAS[bname] then
         local def = BLOCKALIAS[bname]
         local opts = def.opts
