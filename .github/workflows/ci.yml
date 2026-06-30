@@ -1,0 +1,85 @@
+name: CI
+
+# Run on:
+#   * PRs to main -- the gate
+#   * pushes directly to main (squash-merged PRs, hotfixes)
+#   * manual workflow_dispatch for ad-hoc reruns
+
+on:
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - 'llmdoc/**'
+      - '**/README.md'
+      - 'CHANGELOG.md'
+      - 'LICENSE'
+      - '.gitignore'
+      - '.githooks/**'
+      - '.code-review/**'
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'llmdoc/**'
+      - '**/README.md'
+      - 'CHANGELOG.md'
+      - 'LICENSE'
+      - '.gitignore'
+      - '.githooks/**'
+      - '.code-review/**'
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref to keep CI quota tight, but
+# disambiguate PR vs push events so they don't cancel each other.
+concurrency:
+  group: ci-${{ github.head_ref || github.ref_name }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.ref_name != 'main' }}
+
+env:
+  TL_VERSION: '2026'
+
+jobs:
+  check:
+    name: l3build check (luatex)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up TeX Live
+        uses: TeX-Live/setup-texlive-action@v4
+        with:
+          version: ${{ env.TL_VERSION }}
+          packages: |
+            scheme-medium
+            l3build
+            tcolorbox
+            tikz-cd
+            pgfplots
+            tkz-tab
+            unicode-math
+            adjustbox
+            xstring
+            tabularray
+            multirow
+            enumitem
+            ragged2e
+            needspace
+            titlesec
+            extsizes
+            kvoptions
+          cache: true
+
+      - name: l3build check (parallel, 4 buckets)
+        run: |
+          make check J=4
+
+      - name: Upload .diff artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: l3build-diff-${{ github.run_id }}
+          path: |
+            build/test*/**/*.diff
+            build/test*/**/*.log
+          if-no-files-found: ignore
+          retention-days: 14
