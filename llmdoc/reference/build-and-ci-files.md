@@ -74,26 +74,27 @@ The `tag` recipe's conditional phony sub-target at `Makefile:106-112` absorbs th
 
 ### `tl_packages`
 
-83 lines, plain-text package list. Hashed by `hashFiles('.github/tl_packages')` in `ci.yml:69` and `release.yml:54` — adding or removing a package immediately invalidates the manual TL bypass cache.
+99 lines, plain-text package list. Hashed by `hashFiles('.github/tl_packages')` in `ci.yml:67`, `doc.yml:66`, and `release.yml:54` — adding or removing a package immediately invalidates the manual TL bypass cache shared by all three workflows.
 
-Total: **55 packages** in 4 blocks:
+Total: **58 packages** in 5 blocks:
 
 | Block | Lines | Count | Contents |
 |---|---|---|---|
-| Toolchain | `tl_packages:21-29` | 9 | `scheme-basic`, `l3build`, `latex-bin`, `luatex`, `lualatex-math`, `l3kernel`, `l3packages`, `l3experimental`, `l3backend` |
-| cls `\RequirePackage` block | `tl_packages:32-58` | 27 | Direct deps — `geometry`, `unicode-math`, `tcolorbox`, `tikz`, etc. (The inline header comment says "22 entries" — stale, see `memory/doc-gaps.md`) |
-| Transitive deps | `tl_packages:63-79` | 17 | Each line has an inline comment naming the parent: `collectbox            # adjustbox dep` |
-| Fonts | `tl_packages:82-83` | 2 | `lm`, `lm-math` |
+| Toolchain | `tl_packages:29-38` | 9 | `scheme-basic`, `l3build`, `latex-bin`, `luatex`, `lualatex-math`, `l3kernel`, `l3packages`, `l3experimental`, `l3backend` |
+| cls `\RequirePackage` block | `tl_packages:40-67` | 27 | Direct deps — `geometry`, `unicode-math`, `tcolorbox`, `tikz`, etc. |
+| Transitive deps | `tl_packages:69-88` | 17 | Each line has an inline comment naming the parent: `collectbox            # adjustbox dep` |
+| Fonts | `tl_packages:90-92` | 2 | `lm`, `lm-math` |
+| Manual deps | `tl_packages:94-99` | 3 | `booktabs`, `chngcntr`, `fancyvrb` — derived from `lualatex --recorder scholatex.tex`, intersected against `collection-latex` (see "How to choose what to list" below) |
 
 Inline comments on every transitive dep name the parent package — this is the only documentation of which package needs which transitive. The comments are the contract.
 
 #### Regeneration recipe
 
-Verbatim from `tl_packages:8-18`:
+Verbatim from `tl_packages:12-19`:
 
 ```
 cd /tmp && mkdir t && cd t
-for f in <path-to-repo>/examples/*.tex; do
+for f in <path-to-repo>/scholatex.tex <path-to-repo>/examples/*.tex; do
     cp "$f" main.tex
     TEXINPUTS=<path-to-repo>: LUAINPUTS=<path-to-repo>: \
     lualatex --recorder -interaction=nonstopmode main.tex >/dev/null 2>&1
@@ -102,7 +103,30 @@ done | awk '{print $2}' | grep -oE '/tex/[^/]+/[^/]+/' \
     | sed -E 's|/tex/[^/]+/([^/]+)/|\1|' | sort -u
 ```
 
-Run this after adding a new `\RequirePackage` to `scholatex.cls` or after pulling in a new external dependency. The output is a sorted list of TL package names; diff against the current file to find what to add.
+The for-loop covers both the user manual (`scholatex.tex`) and every `examples/*.tex`, since each is an independent compile entrypoint with its own dep surface. Run this after adding a new `\RequirePackage` to `scholatex.cls`, a new `\usepackage` to `scholatex.tex`, or pulling in any new external dependency. The output is a sorted list of TL package names; diff against the current file to find what to add.
+
+#### How to choose what to list
+
+The raw `--recorder` output above is **necessary but not sufficient**. `scheme-basic` already pulls in `collection-latex` whose ~62 transitive deps cover the entire hyperref family (`bigintcalc`, `bitset`, `hycolor`, `intcalc`, `kvdefinekeys`, `ltxcmds`, `pdfescape`, `refcount`, `rerunfilecheck`, `stringenc`, `uniquecounter`, `url`), plus `tools` (which ships `array.sty`, `longtable.sty`, ...), `latexconfig`, `graphics-cfg`, and more. Listing these explicitly would only churn the cache hash without adding coverage.
+
+The intersection recipe:
+
+```
+tlmgr info --json collection-latex | jq -r '.[0].depends[]' | sort -u > /tmp/collection-latex.txt
+comm -23 <(<recorder-output> | sort -u) /tmp/collection-latex.txt
+```
+
+Concrete result from `bd98852`: the naive `--recorder` diff over `scholatex.tex` produced **23 raw candidate dirs**; after intersecting against `collection-latex`, only **3** remained — `booktabs`, `chngcntr`, `fancyvrb`. The other 20 (hyperref + its 12 transitive deps, plus tools / array / longtable / latexconfig / graphics-cfg / etc.) all live inside `collection-latex` and are pulled in automatically by `scheme-basic`.
+
+**Caveat: not every texmf dir name is a real TLPDB package.** Some directory names (e.g. `array`, which lives in TL dir `texmf-dist/tex/latex/array/` but is shipped by the `tools` package) have no corresponding entry in the TLPDB; `tlmgr info array` returns "package not found". `setup-texlive-action` silently tolerates such phantom names, which is why the existing `tl_packages:44 array` line is inert yet CI is green. Validation recipe:
+
+```
+for n in <candidates>; do
+    tlmgr info "$n" 2>&1 | grep -q "^package: *$n" && echo "OK    $n" || echo "PHANTOM $n"
+done
+```
+
+State this as a known caveat, not an action item — the existing phantom lines work today.
 
 ### `workflows/ci.yml`
 
@@ -124,6 +148,33 @@ Run this after adding a new `\RequirePackage` to `scholatex.cls` or after pullin
 | Diff artifact step | `if: failure()`; uploads `build/test*/**/*.diff`, `build/test*/**/*.log`, `tmp/parallel-check/**/build/test*/**/*.diff`, `tmp/parallel-check/**/build/test*/**/*.log`; 14-day retention | `ci.yml:95-106` |
 
 The artifact glob captures both the serial path (`build/test*/`) and the parallel-bucket paths (`tmp/parallel-check/N/build/test*/`). Parallel buckets place their build directories inside their own isolated worktrees under `tmp/parallel-check/N/`, so artifact globs must cover both.
+
+### `workflows/doc.yml`
+
+108 lines, single job `doc` named "l3build doc (lualatex scholatex.tex)". Compiles the user manual on every push so a manual-only regression (missing `\usepackage`, broken `titlesec` format, hyperref breakage) is caught immediately instead of at release time.
+
+| Section | Detail | Citation |
+|---|---|---|
+| Triggers | `pull_request` to `main`, `push` to `main`, `workflow_dispatch` | `doc.yml:18-37` |
+| paths-ignore | `llmdoc/**`, `**/README.md`, `CHANGELOG.md`, `LICENSE`, `.gitignore`, `.githooks/**` (identical to `ci.yml`, both PR and push) | `doc.yml:20-26, 29-35` |
+| Concurrency group | `doc-${{ github.head_ref || github.ref_name }}-${{ github.event_name }}` | `doc.yml:38-40` |
+| cancel-in-progress | `${{ github.ref_name != 'main' }}` | `doc.yml:40` |
+| `TL_VERSION` env | `'2026'` | `doc.yml:42-43` |
+| Cache week step | `echo "iso=$(date -u +'%G-W%V')" >> $GITHUB_OUTPUT` | `doc.yml:57-59` |
+| TL bypass cache key | `tl-bypass-${{ runner.os }}-${{ env.TL_VERSION }}-${{ steps.cache-week.outputs.iso }}-${{ hashFiles('.github/tl_packages') }}` — byte-identical key shape to `ci.yml:67` | `doc.yml:61-66` |
+| Cache path | `${{ runner.temp }}/setup-texlive-action/${{ env.TL_VERSION }}` | `doc.yml:65` |
+| Cache hit step | Skip setup-texlive; export bin path to `$GITHUB_PATH`; `tlmgr version` sanity check with `continue-on-error: true` | `doc.yml:68-74` |
+| Cache miss step | `setup-texlive-action@v4` with `cache: false`, `package-file: .github/tl_packages`, `update-all-packages: true` | `doc.yml:76-83` |
+| Run step | `make doc` | `doc.yml:85-87` |
+| Manual artifact step | Uploads `build/doc/scholatex.pdf` and `scholatex.pdf`; 14-day retention; named `scholatex-manual-${{ github.run_id }}`; `if-no-files-found: error` (the PDF is a required output) | `doc.yml:89-97` |
+| Log artifact step | `if: failure()`; uploads `build/doc/scholatex.log` and `scholatex.log`; 14-day retention; `if-no-files-found: ignore` | `doc.yml:99-108` |
+
+#### Design rationale
+
+- **Budget separation**: `ci.yml` has a 30-minute timeout tuned for the parallel check matrix; `doc.yml` has a 20-minute timeout tuned for a single typeset run. Combining them in one workflow would force every doc edit through the check matrix and every code edit through an extra typeset run.
+- **Shared cache key shape**: the cache key in `doc.yml:66` is byte-identical to `ci.yml:67` — same path, same key recipe. A single primed cache (e.g. from a CI run) serves both workflows; the second run hits the cache and skips the ~2-minute cold install.
+- **`paths-ignore` mirrors `ci.yml`**: prose-only edits (README, CHANGELOG, llmdoc, LICENSE, .gitignore, .githooks) trigger neither workflow. `scholatex.tex` itself is *not* in the ignore list (it is code-shaped in this taxonomy), so manual edits trigger `doc.yml`.
+- **What `make doc` actually exercises**: `scholatex.tex` is article-class self-hosted — the `\documentclass[margins=20, size=12, imgdir=IMG]{scholatex}` block at the top is verbatim sample code wrapped in a `slcode` Verbatim environment, **not** an actual `\documentclass` invocation. So `make doc` exercises `article + hyperref + titlesec + booktabs + chngcntr + fancyvrb`, not scholatex itself. The cls is exercised only by `testfiles/*.lvt` under `make check`.
 
 ### `workflows/release.yml`
 
@@ -359,11 +410,11 @@ rm -rf build && l3build save -e luatex \
 
 ### Regenerate `.github/tl_packages`
 
-Verbatim from the file's own header at `.github/tl_packages:8-18`:
+Verbatim from the file's own header at `.github/tl_packages:12-19`:
 
 ```
 cd /tmp && mkdir t && cd t
-for f in <path-to-repo>/examples/*.tex; do
+for f in <path-to-repo>/scholatex.tex <path-to-repo>/examples/*.tex; do
     cp "$f" main.tex
     TEXINPUTS=<path-to-repo>: LUAINPUTS=<path-to-repo>: \
     lualatex --recorder -interaction=nonstopmode main.tex >/dev/null 2>&1
@@ -372,7 +423,7 @@ done | awk '{print $2}' | grep -oE '/tex/[^/]+/[^/]+/' \
     | sed -E 's|/tex/[^/]+/([^/]+)/|\1|' | sort -u
 ```
 
-Run after a new `\RequirePackage` is added to `scholatex.cls`. Diff the output against the current `tl_packages` to find what to add.
+The for-loop covers both `scholatex.tex` (the user manual) and every `examples/*.tex`; each compile entrypoint has its own dep surface. Run after a new `\RequirePackage` is added to `scholatex.cls`, or a new `\usepackage` is added to `scholatex.tex`. Diff the output against the current `tl_packages` to find what to add — but first intersect candidates against `collection-latex` (see § `tl_packages` "How to choose what to list" for the recipe and rationale).
 
 ## Known limitations
 
@@ -383,7 +434,7 @@ The following items are knowingly deferred or partial:
 - **B4** (`--jobname=foo` mismatch) has no `.lvt` coverage — l3build does not accept per-test `checkopts`. Class-side explicit error works on real documents. Status: **partial** in `memory/doc-gaps.md`.
 - **`containers.tex` smoke test deferred** — uses `examples/IMG/` image deps; `testfiles/support/` would need to mirror or symlink the assets.
 - **`ctan-release` GitHub environment not provisioned** in the GitHub UI. Operator action required before the first live CTAN upload.
-- **`tl_packages:31` comment says "22 entries"** but the actual `\RequirePackage` block has 27. Minor doc drift.
+- **Phantom TLPDB names tolerated**: not every TL directory under `texmf-dist/tex/latex/<dir>/` is a real TLPDB package (e.g. `array.sty` ships in `tools`; `tlmgr info array` returns "package not found"). `setup-texlive-action` silently tolerates such names, so the existing `tl_packages:44 array` line is inert yet CI is green. Validation recipe is in § `tl_packages` "How to choose what to list". Not load-bearing; flagged only for cache-hygiene audits on TL major-version bumps.
 - **`extract-changelog.sh` does not handle `## [unreleased]`** sections — matches strict `## [<ver>]` only.
 - **`release.yml` CI wait loop has a 30-min hard budget** — a larger corpus or a slow runner could hit this without a graceful extension.
 - **`_keep_patterns` design depends on l3build's `rewrite_log` remaining a global function** — an l3build major refactor would silently no-op the override and corrupt every baseline.

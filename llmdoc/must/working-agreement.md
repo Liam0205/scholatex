@@ -76,7 +76,11 @@ There is no `make save` wrapper; invoke `l3build save` directly. See `architectu
 
 ## TL packages sync
 
-Adding a `\RequirePackage{X}` to `scholatex.cls` REQUIRES re-deriving `.github/tl_packages` via the `lualatex --recorder` recipe documented in the file's header comment. Do not push the cls change without the corresponding tl_packages change — CI will fail mid-install with a `File 'X.sty' not found` error. The hash of `.github/tl_packages` is part of the CI cache key, so a stale file silently reuses a cache that lacks the package.
+Adding a `\RequirePackage{X}` to `scholatex.cls` — or a `\usepackage{X}` to `scholatex.tex` (the user manual) — REQUIRES re-deriving `.github/tl_packages` via the `lualatex --recorder` recipe documented in the file's header comment. The recipe iterates over BOTH `scholatex.tex` AND `examples/*.tex` because each is an independent compile entrypoint with its own dep surface. Do not push the cls or manual change without the corresponding `tl_packages` change — CI will fail mid-install with a `File 'X.sty' not found` error.
+
+Before adding any candidate from the raw recipe output, cross-check against `collection-latex`'s transitive deps (intersection recipe at `reference/build-and-ci-files.md` § `tl_packages` "How to choose what to list"). Most hyperref / tools / array / longtable deps are already pulled in by `scheme-basic` and need not be enumerated — listing them only churns the cache hash without adding coverage.
+
+The hash of `.github/tl_packages` is part of the cache key for **both** `.github/workflows/ci.yml` AND `.github/workflows/doc.yml` (and `release.yml`), so a stale file silently reuses a cache that lacks the package on every gated workflow at once.
 
 ## `%` in `\directlua`
 
