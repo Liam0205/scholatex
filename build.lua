@@ -87,3 +87,71 @@ local function read_version()
   return body:match("ProvidesClass{scholatex}%[[%d-]+%s+v([%w.+-]+)") or "dev"
 end
 uploadconfig.version = "v" .. read_version()
+
+-- ────────────────────────────────────────────────────────────────────────
+-- Baseline filter (whitelist)
+-- ────────────────────────────────────────────────────────────────────────
+--
+-- l3build's normalize_log strips engine noise (dates, register numbers,
+-- file paths) but happily keeps everything LaTeX prints in the preamble
+-- and the begindocument hook chain -- font defaults, geometry verbose
+-- output, pgfplots compat notices, etc. None of that is scholatex's
+-- output; pinning it makes .tlg baselines fragile against LaTeX kernel
+-- updates without buying us any actual regression coverage.
+--
+-- Whitelist by signature: scholatex's user-visible output has exactly
+-- three shapes, all easy to grep for:
+--
+--   * "scholatex:" / "scholatex.cls:"        -- error / warning text
+--                                              (~126 error sites in src)
+--   * "./scholatex.lua:..." / "./scholatex-*.lua:..."
+--                                              -- stack trace frames after
+--                                              -- a Lua-level error
+--   * "Class scholatex Warning:"              -- \ClassWarning output
+--                                              -- (B3 truncation warn)
+--
+-- Everything else in the body of the .tlg becomes documentation noise
+-- and is dropped. The l3build header / footer ("This is a generated
+-- file..." / the recordstatus block) is preserved verbatim, as are the
+-- START-TEST-LOG / END-TEST-LOG markers.
+--
+-- Implementation: wrap rewrite_log so it calls l3build's original
+-- normalisation first, then sweeps the output file dropping lines that
+-- don't match the whitelist.
+
+local _orig_rewrite_log = rewrite_log
+
+-- Pattern table. A line is KEPT if any pattern matches.
+local _keep_patterns = {
+  "^scholatex:",                  -- main error / warning prefix
+  "^scholatex%.cls:",             -- cls boot errors
+  "^Class scholatex Warning",     -- \ClassWarning
+  "^[^:]-scholatex%.lua:",        -- stack trace from scholatex.lua
+  "^[^:]-scholatex%-[%w_-]+%.lua:", -- stack trace from scholatex-*.lua
+  "^This is a generated file",    -- l3build header line 1
+  "^Don't change this file",      -- l3build header line 2
+  "^%*+$",                        -- the recordstatus separator (***)
+  "^Compilation %d+ of test file", -- the recordstatus body line
+}
+
+local function _scholatex_filter(path)
+  local f = io.open(path, "r"); if not f then return end
+  local kept = {}
+  for line in f:lines() do
+    local keep = false
+    for _, pat in ipairs(_keep_patterns) do
+      if line:match(pat) then keep = true; break end
+    end
+    if keep then kept[#kept + 1] = line end
+  end
+  f:close()
+  f = io.open(path, "w"); if not f then return end
+  for _, l in ipairs(kept) do f:write(l, "\n") end
+  f:close()
+end
+
+function rewrite_log(source, result, engine, errlevels)
+  local r = _orig_rewrite_log(source, result, engine, errlevels)
+  _scholatex_filter(result)
+  return r
+end
