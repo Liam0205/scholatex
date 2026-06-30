@@ -1,0 +1,52 @@
+# TeX Live packages required to compile scholatex and run its test corpus.
+#
+# Format: one package name per line; blank lines and `# ` comments allowed.
+# Consumed by .github/workflows/*.yml via setup-texlive-action's
+# `package-file:` option, and hashed by hashFiles() so this list is part
+# of the TL cache key.
+#
+# Edit when scholatex.cls adds / drops a \RequirePackage, or when a TeX
+# Live release moves a transitive dependency.
+
+# l3build harness
+scheme-basic
+l3build
+latex-bin
+luatex
+lualatex-math
+l3kernel
+l3packages
+l3experimental
+
+# scholatex.cls \RequirePackage list
+kvoptions
+amsmath
+amsfonts
+array
+graphics
+graphicx
+adjustbox
+xstring
+tabularx
+tabularray
+multirow
+xcolor
+colortbl
+enumitem
+ragged2e
+needspace
+tcolorbox
+tikzfill
+tikz-cd
+tkz-tab
+pgf
+pgfplots
+titlesec
+fontspec
+unicode-math
+geometry
+extsizes
+
+# Fonts pulled by fontspec / unicode-math
+lm
+lm-math

@@ -49,24 +49,11 @@ jobs:
         uses: TeX-Live/setup-texlive-action@v4
         with:
           version: ${{ env.TL_VERSION }}
-          packages: |
-            scheme-medium
-            l3build
-            tcolorbox
-            tikz-cd
-            pgfplots
-            tkz-tab
-            unicode-math
-            adjustbox
-            xstring
-            tabularray
-            multirow
-            enumitem
-            ragged2e
-            needspace
-            titlesec
-            extsizes
-            kvoptions
+          # Package set is .github/tl_packages: scheme-basic + the exact
+          # deltas scholatex.cls requires plus its toolchain. The file
+          # is the single source of truth; hashFiles() puts it into the
+          # cache key so any package addition invalidates the cache.
+          package-file: .github/tl_packages
           cache: true
 
       - name: l3build check (parallel, 4 buckets)
