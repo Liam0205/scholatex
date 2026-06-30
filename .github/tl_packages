@@ -6,16 +6,25 @@
 # of the TL cache key.
 #
 # The list is derived from `lualatex --recorder` traces over every file
-# in examples/*.tex. To regenerate after a cls dependency change:
+# in examples/*.tex AND scholatex.tex. To regenerate after a cls or
+# manual dependency change:
 #
 #   cd /tmp && mkdir t && cd t
-#   for f in <path-to-repo>/examples/*.tex; do
+#   for f in <path-to-repo>/scholatex.tex <path-to-repo>/examples/*.tex; do
 #     cp "$f" main.tex
 #     TEXINPUTS=<path-to-repo>: LUAINPUTS=<path-to-repo>: \
 #       lualatex --recorder -interaction=nonstopmode main.tex >/dev/null 2>&1
 #     grep -oE 'INPUT [^ ]+\.(sty|cls|def|cfg|fd|tex|lua|cmap|clo)$' main.fls
 #   done | awk '{print $2}' | grep -oE '/tex/[^/]+/[^/]+/' \
 #        | sed -E 's|/tex/[^/]+/([^/]+)/|\1|' | sort -u
+#
+# Cross-check against `collection-latex` (transitive via scheme-basic) to
+# avoid re-listing pkgs already pulled in. The hyperref family
+# (bigintcalc, bitset, hycolor, intcalc, kvdefinekeys, ltxcmds, pdfescape,
+# refcount, rerunfilecheck, stringenc, uniquecounter, url, ...) all live
+# in collection-latex and need not be enumerated here:
+#
+#   tlmgr info --json collection-latex | jq -r '.[0].depends[]' | sort -u
 
 # l3build harness + scheme-basic
 scheme-basic
@@ -28,7 +37,7 @@ l3packages
 l3experimental
 l3backend
 
-# scholatex.cls \RequirePackage list (22 entries)
+# scholatex.cls \RequirePackage list (27 entries)
 kvoptions
 amsmath
 amsfonts
@@ -81,3 +90,10 @@ iftex                 # general convenience
 # Fonts pulled by fontspec / unicode-math
 lm
 lm-math
+
+# scholatex.tex (the user manual) direct \usepackage list. hyperref and
+# its full dep chain are already in collection-latex, as are array,
+# longtable, tools/. Only the three below need explicit listing.
+booktabs              # manual: \usepackage{booktabs}
+chngcntr              # manual: \counterwithin*{section}{part}
+fancyvrb              # manual: \DefineVerbatimEnvironment{slcode}{Verbatim}{...}
